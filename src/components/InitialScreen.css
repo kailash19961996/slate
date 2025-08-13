@@ -5,7 +5,7 @@
   align-items: center;
   justify-content: center;
   /* animated multi-shade dark gradient */
-  background: linear-gradient(135deg, #000000 0%, #0f0f0f 25%, #1a1a1a 50%, #0d0d0d 75%, #000000 100%);
+  background: linear-gradient(135deg, #000000 0%, #0f0f0f 25%, #313131 50%, #0d0d0d 75%, #000000 100%);
   background-size: 400% 400%;
   animation: gradientFlow 20s ease-in-out infinite;
   padding: 5rem;
@@ -18,8 +18,8 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 25% 25%, rgba(255,255,255,0.03) 0%, transparent 50%),
-    radial-gradient(circle at 75% 75%, rgba(255,255,255,0.02) 0%, transparent 50%);
+    radial-gradient(circle at 25% 25%, rgba(192, 155, 199, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(116, 134, 148, 0.02) 0%, transparent 50%);
   animation: glowDrift 25s ease-in-out infinite alternate;
   pointer-events: none;
 }
@@ -30,7 +30,7 @@
   position: absolute;
   inset: 0;
   background-image: 
-    radial-gradient(rgba(255,255,255,0.4) 0.5px, transparent 0.5px),
+    radial-gradient(rgba(95, 223, 44, 0.4) 0.5px, transparent 0.5px),
     radial-gradient(rgba(255,255,255,0.2) 1px, transparent 1px);
   background-size: 3px 3px, 6px 6px;
   background-position: 0 0, 3px 3px;
@@ -77,6 +77,8 @@
   overflow: hidden;
   backdrop-filter: blur(12px) saturate(140%);
   -webkit-backdrop-filter: blur(12px) saturate(140%);
+  /* Constant soft glow around the logo */
+  filter: drop-shadow(0 0 14px rgba(255,255,255,0.20)) drop-shadow(0 0 30px rgba(255,255,255,0.12));
   animation: logoPulse 3.5s ease-in-out infinite;
 }
 
