@@ -17,6 +17,7 @@ from langchain.agents import create_tool_calling_agent, AgentExecutor
 from dotenv import load_dotenv
 import os
 from fastapi import Request
+from langchain_core.tools import tool
 
 load_dotenv()
 app = FastAPI(title="SLATE Backend", version="4.0.0")
@@ -46,17 +47,27 @@ def connect_tronlink_wallet(user_request: str) -> Dict[str, Any]:
         "frontend_action": "show_wallet_widget"
     }
 
+@tool
+def request_wallet_details(spec: str) -> Dict[str, Any]:
+    """Ask the frontend to fetch wallet details (TRX, tokens, etc.)."""
+    return {
+        "type": "wallet_details_request",
+        "message": "Fetch wallet details from the browser wallet.",
+        "fields": ["trx_balance"]  # extend as needed (e.g., tokens)
+    }
 def create_agent():
     print("🤖 [AGENT] Creating agent...")
     if OPENAI_API_KEY:
         print("✅ [AGENT] OpenAI API key found, creating LangGraph agent")
         try:
             llm = ChatOpenAI(model=OPEN_AI_MODEL, temperature=0.2, api_key=OPENAI_API_KEY)
-            tools = [connect_tronlink_wallet]
+            tools = [connect_tronlink_wallet, request_wallet_details]
             print(f"🛠️ [AGENT] Loaded {len(tools)} tools")
             
             prompt = ChatPromptTemplate.from_messages([
-                ("system", "You are SLATE, a blockchain assistant. When users ask to connect wallet, use connect_tronlink_wallet tool."),
+                ("system", "You are SLATE. If user asks to CONNECT a wallet → call connect_tronlink_wallet. \
+                If user asks for WALLET DETAILS/BALANCE/ADDRESS → call request_wallet_details. \
+                The frontend will execute these and report results."),
                 MessagesPlaceholder("chat_history"),
                 ("human", "{input}"),
                 MessagesPlaceholder("agent_scratchpad"),
@@ -95,6 +106,19 @@ class WalletError(BaseModel):
     session_id: str
     error: str
 
+class WalletDetails(BaseModel):
+    session_id: str
+    address: str
+    trx_balance: str  # e.g., "12.345678 TRX"
+    extra: Dict[str, Any] = {}
+
+@app.post("/api/wallet/details")
+async def wallet_details(evt: WalletDetails):
+    s = sessions.setdefault(evt.session_id, {"chat_history": []})
+    s["wallet_details"] = evt.dict()
+    s["chat_history"].append(("ai", f"📊 Wallet details updated for {evt.address}"))
+    return {"ok": True}
+
 @app.post("/api/wallet/connected")
 async def wallet_connected(evt: WalletConnected):
     s = sessions.setdefault(evt.session_id, {"chat_history": []})
@@ -115,7 +139,7 @@ async def wallet_error(evt: WalletError):
     # optional: bot can mention failure next turn
     s["chat_history"].append(("ai", f"❌ Wallet connection failed: {evt.error}"))
     return {"ok": True}
-    
+
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
@@ -155,6 +179,12 @@ async def chat_endpoint(message: ChatMessage):
                         "data": observation
                     })
                     print("💳 [CHAT] Wallet connection tool triggered")
+                if action.tool == "request_wallet_details":
+                    function_calls.append({
+                    "type": "wallet_details_request",
+                    "data": observation
+                     })
+                    print("📊 [CHAT] Wallet details tool triggered")
             
             session["chat_history"].extend([("human", message.message), ("ai", reply)])
         else:

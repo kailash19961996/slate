@@ -1,243 +1,191 @@
-/**
- * SecondPage.jsx - Split Screen Chat Interface
- * ==========================================
- * 
- * Split screen layout featuring:
- * - Left side: ChatInterface (50% width)
- * - Right side: FunctionPanel (50% width)
- * 
- * Component Architecture:
- * 1. ChatInterface - Handles user chat interactions with backend
- * 2. FunctionPanel - Displays dynamic widgets based on backend responses
- * 
- * State Management:
- * - Manages chat messages
- * - Handles widget display logic
- * - Coordinates backend communication
- */
+// src/pages/SecondPage.jsx
+import { useMemo, useState } from "react";
+import ChatInterface from "../components/ChatInterface.jsx";
+import FunctionPanel from "../components/FunctionPanel.jsx";
+import { connectTronLinkNile, readTrxBalance } from "../utils/tronlink";
+import { makeLogger } from "../utils/logger";
 
-import { useState, useEffect } from 'react'
-import ChatInterface from '../components/ChatInterface'
-import FunctionPanel from '../components/FunctionPanel'
-import './SecondPage.css'
+const API_BASE = "http://127.0.0.1:8000"; // adjust if needed
+const log = makeLogger("SECOND_PAGE");
 
-const SecondPage = ({ initialMessage, onBack }) => {
-  console.log('💬 [SECOND PAGE] SecondPage component rendering')
-  console.log('📨 [SECOND PAGE] Initial message:', initialMessage)
-  
-  // Chat state management
-  const [messages, setMessages] = useState([])
-  const [isLoading, setIsLoading] = useState(false)
-  
-  // Widget state management
-  const [currentWidget, setCurrentWidget] = useState('idle') // 'idle', 'thinking', 'wallet'
-  const [walletData, setWalletData] = useState(null)
-  const [isThinking, setIsThinking] = useState(false)
+export default function SecondPage() {
+  // ---------------- State ----------------
+  const [messages, setMessages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  /**
-   * Initialize chat with the initial message from FirstPage
-   */
-  useEffect(() => {
-    if (initialMessage) {
-      console.log('🚀 [SECOND PAGE] Initializing chat with message:', initialMessage)
-      
-      // Add user message
-      const userMessage = {
-        id: Date.now(),
-        text: initialMessage,
-        sender: 'user',
-        timestamp: new Date()
-      }
-      
-      setMessages([userMessage])
-      handleSendToBackend(initialMessage)
+  // Right-panel widget state
+  const [currentWidget, setCurrentWidget] = useState("idle"); // 'idle' | 'thinking' | 'wallet'
+  const [walletData, setWalletData] = useState(null);
+
+  // Stable session id => enables backend conversation memory
+  const [sessionId] = useState(() => (crypto?.randomUUID?.() || `session_${Date.now()}`));
+  const nextId = useMemo(() => () => Math.floor(Math.random() * 1e15), []);
+
+  // ---------------- Helpers ----------------
+  async function postJSON(path, body) {
+    log.debug("POST", path, body);
+    const res = await fetch(`${API_BASE}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    log.debug("RESP", path, res.status);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    log.debug("RESP JSON", path, json);
+    return json;
+  }
+
+  function showBot(text) {
+    setMessages((m) =>
+      m.concat({ id: nextId(), text, sender: "ai", timestamp: new Date() })
+    );
+  }
+
+  // ---------------- Tool Handlers ----------------
+  async function handleWalletConnectRequest() {
+    log.step("tool wallet_connection_request");
+    try {
+      const { address, nodeHost, network } = await connectTronLinkNile();
+      log.info("wallet connected", { address, nodeHost, network });
+
+      const trx = await readTrxBalance(address);
+      log.info("trx balance", { trx });
+
+      // let backend know we connected
+      await postJSON("/api/wallet/connected", {
+        session_id: sessionId,
+        address,
+        node_host: nodeHost,
+        network,
+      });
+
+      // update right panel
+      setWalletData({
+        address,
+        balance: `${Number(trx).toFixed(6)} TRX`,
+        formatted_address: `${address.slice(0, 6)}...${address.slice(-4)}`,
+        status: "connected",
+      });
+      setCurrentWidget("wallet");
+
+      // echo to chat
+      showBot(`✅ Wallet connected: ${address}`);
+      showBot(`TRX balance: ${Number(trx).toFixed(6)} TRX`);
+    } catch (err) {
+      const errorMsg = err?.message || String(err);
+      log.error("wallet connect failed", errorMsg);
+      await postJSON("/api/wallet/error", { session_id: sessionId, error: errorMsg });
+      showBot(`❌ Wallet connection failed: ${errorMsg}`);
+      setCurrentWidget("idle");
     }
-  }, [initialMessage])
+  }
 
-  /**
-   * Handle sending messages to real backend
-   * Connects to FastAPI backend with LangGraph agent
-   */
-  const handleSendToBackend = async (message) => {
-    console.log('🔄 [SECOND PAGE] Starting thinking animation and backend call')
-    
-    // Start thinking animation
-    setIsThinking(true)
-    setIsLoading(true)
-    setCurrentWidget('thinking')
+  async function handleWalletDetailsRequest() {
+    log.step("tool wallet_details_request");
+    try {
+      // ensure connected (or prompt)
+      const { address, nodeHost, network } = await connectTronLinkNile();
+      const trx = await readTrxBalance(address);
+      const balanceStr = `${Number(trx).toFixed(6)} TRX`;
+      log.info("details pulled", { address, nodeHost, network, trx });
+
+      // update widget immediately
+      setWalletData({
+        address,
+        balance: balanceStr,
+        formatted_address: `${address.slice(0, 6)}...${address.slice(-4)}`,
+        status: "connected",
+      });
+      setCurrentWidget("wallet");
+
+      // send details to backend so agent can use next turn
+      await postJSON("/api/wallet/details", {
+        session_id: sessionId,
+        address,
+        trx_balance: balanceStr,
+        extra: { node_host: nodeHost, network },
+      });
+
+      showBot(`📊 TRX balance: ${balanceStr}`);
+    } catch (err) {
+      const errorMsg = err?.message || String(err);
+      log.error("wallet details failed", errorMsg);
+      await postJSON("/api/wallet/error", { session_id: sessionId, error: errorMsg });
+      showBot(`❌ Could not get wallet details: ${errorMsg}`);
+      setCurrentWidget("idle");
+    }
+  }
+
+  // ---------------- Chat send ----------------
+  const handleSendToBackend = async (text) => {
+    const trimmed = (text || "").trim();
+    if (!trimmed) return;
+
+    log.step("SEND", { text: trimmed, sessionId });
+    setIsLoading(true);
+    setCurrentWidget("thinking");
+
+    // show user bubble
+    const userMsg = { id: nextId(), text: trimmed, sender: "user", timestamp: new Date() };
+    setMessages((m) => m.concat(userMsg));
 
     try {
-      const backendUrl = 'http://localhost:8000'
-      console.log('📡 [SECOND PAGE] Connecting to backend at:', backendUrl)
-      
-      // Send message to chat endpoint
-      const chatResponse = await fetch(`${backendUrl}/api/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: message,
-          session_id: `session_${Date.now()}`
-        })
-      })
-      
-      if (!chatResponse.ok) {
-        throw new Error(`Backend request failed: ${chatResponse.status}`)
+      const data = await postJSON("/api/chat", {
+        message: trimmed,
+        session_id: sessionId,
+      });
+
+      // bot reply (if any)
+      if (data.reply) {
+        showBot(data.reply);
       }
-      
-      const chatData = await chatResponse.json()
-      console.log('📨 [SECOND PAGE] Backend response:', chatData)
-      console.log('⏱️ [SECOND PAGE] Thinking time:', chatData.thinking_time)
-      
-      // Add AI response from backend
-      const aiMessage = {
-        id: Date.now() + 1,
-        text: chatData.reply || "I received your message!",
-        sender: 'ai',
-        timestamp: new Date()
-      }
-      
-      setMessages(prev => [...prev, aiMessage])
-      
-      // Handle function calls from backend
-      let hasWalletCall = false
-      if (chatData.function_calls && chatData.function_calls.length > 0) {
-        console.log('🛠️ [SECOND PAGE] Processing function calls:', chatData.function_calls)
-        
-        for (const functionCall of chatData.function_calls) {
-            if (functionCall.type === 'wallet_connection_request') {
-                console.log('💳 [SECOND PAGE] Wallet connection request detected')
-                try {
-                  const { connectTronLinkNile, readTrxBalance } = await import('../utils/tronlink');
-                  const { address, nodeHost, network } = await connectTronLinkNile();
-                  const balance = await readTrxBalance(address);
-              
-                  // send success to backend
-                  await fetch('http://localhost:8000/api/wallet/connected', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      session_id: `session_${Date.now()}`,
-                      address,
-                      network,
-                      node_host: nodeHost
-                    })
-                  });
-              
-                  setWalletData({
-                    address,
-                    balance,
-                    formatted_address: `${address.slice(0, 6)}...${address.slice(-4)}`,
-                    status: 'connected'
-                  });
-                  setCurrentWidget('wallet');
-              
-                } catch (err) {
-                  console.error("❌ TronLink connect failed:", err);
-                  const errorMsg = err?.message || String(err);
-              
-                  // send error to backend
-                  await fetch('http://localhost:8000/api/wallet/error', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      session_id: `session_${Date.now()}`,
-                      error: errorMsg
-                    })
-                  });
-              
-                  // optionally show in chat
-                  setMessages(prev => [...prev, {
-                    id: Date.now(),
-                    text: `❌ Wallet connection failed: ${errorMsg}`,
-                    sender: 'ai',
-                    timestamp: new Date()
-                  }]);
-              
-                  setCurrentWidget('idle');
-                }
-              }              
+
+      // obey tool calls
+      if (Array.isArray(data.function_calls)) {
+        const types = data.function_calls.map((fc) => fc.type);
+        log.info("function_calls", types);
+
+        for (const fc of data.function_calls) {
+          log.step("tool dispatch", fc.type);
+          if (fc.type === "wallet_connection_request") {
+            await handleWalletConnectRequest();
+          } else if (fc.type === "wallet_details_request") {
+            await handleWalletDetailsRequest();
+          } else {
+            log.warn("unknown tool", fc);
+          }
         }
       }
-      
-      // If no function calls, return to idle
-      if (!hasWalletCall) {
-        setCurrentWidget('idle')
-      }
-      
-      console.log('✅ [SECOND PAGE] Backend response processed successfully')
-      
-    } catch (error) {
-      console.error('❌ [SECOND PAGE] Backend connection error:', error)
-      
-      // Add error message
-      const errorMessage = {
-        id: Date.now() + 1,
-        text: "🔌 Backend is not connected. Please make sure the SLATE backend server is running on localhost:8000",
-        sender: 'ai',
-        timestamp: new Date()
-      }
-      
-      setMessages(prev => [...prev, errorMessage])
-      setCurrentWidget('idle')
-      
+    } catch (err) {
+      log.error("CHAT failed", err);
+      showBot(`❌ Server error: ${err?.message || String(err)}`);
     } finally {
-      setIsThinking(false)
-      setIsLoading(false)
+      setIsLoading(false);
+      if (currentWidget === "thinking") setCurrentWidget("idle");
     }
-  }
+  };
 
-  /**
-   * Handle new message submission from ChatInterface
-   */
-  const handleNewMessage = (message) => {
-    console.log('📝 [SECOND PAGE] New message from chat interface:', message)
-    
-    // Add user message
-    const userMessage = {
-      id: Date.now(),
-      text: message,
-      sender: 'user',
-      timestamp: new Date()
-    }
-    
-    setMessages(prev => [...prev, userMessage])
-    handleSendToBackend(message)
-  }
-
-  /**
-   * Handle widget state changes
-   */
-  const handleWidgetChange = (newWidget) => {
-    console.log('🎛️ [SECOND PAGE] Widget changed to:', newWidget)
-    setCurrentWidget(newWidget)
-  }
-
+  // ---------------- Render ----------------
   return (
-    <div className="second-page">
-      <div className="split-container">
-        {/* Left Split - Chat Interface */}
-        <div className="left-split">
-          <ChatInterface
-            messages={messages}
-            onSendMessage={handleNewMessage}
-            isLoading={isThinking}
-          />
-        </div>
-        
-        {/* Right Split - Function Panel */}
-        <div className="right-split">
-          <FunctionPanel
-            currentWidget={currentWidget}
-            walletData={walletData}
-            isLoading={isThinking}
-            onWidgetChange={setCurrentWidget}
-          />
-        </div>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, padding: 16 }}>
+      <div>
+        <ChatInterface
+          messages={messages}
+          onSendMessage={handleSendToBackend}
+          isLoading={isLoading}
+          onBack={() => window.history.back()}
+        />
+      </div>
+
+      <div>
+        <FunctionPanel
+          currentWidget={currentWidget}
+          setCurrentWidget={setCurrentWidget}
+          walletData={walletData}
+          isLoading={isLoading}
+        />
       </div>
     </div>
-  )
+  );
 }
-
-export default SecondPage
