@@ -1,213 +1,165 @@
+/**
+ * ChatInterface.jsx - Pretty Chat Interface Component
+ * =================================================
+ * 
+ * Beautiful chatbot interface featuring:
+ * - Message display with user/AI distinction
+ * - Typing indicator when AI is thinking
+ * - Input field with send button
+ * - Scroll to bottom functionality
+ * - Back button to return to FirstPage
+ * 
+ * Connected to backend for real-time chat functionality
+ */
+
 import { useState, useRef, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Send, Bot, User, Sparkles, ArrowLeft, Wallet, CheckCircle } from 'lucide-react'
+import { Send, ArrowLeft, Bot, User } from 'lucide-react'
 import './ChatInterface.css'
 
-const ChatInterface = ({ 
-  messages, 
-  onSendMessage, 
-  isConnected = true, 
-  walletConnected = false,
-  walletInfo = null,
-  pendingInput = null,
-  onBack 
-}) => {
+const ChatInterface = ({ messages, onSendMessage, isLoading, onBack }) => {
+  console.log('💬 [CHAT INTERFACE] ChatInterface component rendering')
+  console.log('📊 [CHAT INTERFACE] Current messages count:', messages.length)
+  console.log('⏳ [CHAT INTERFACE] Is loading:', isLoading)
+  
   const [inputValue, setInputValue] = useState('')
-  const [isTyping, setIsTyping] = useState(false)
   const messagesEndRef = useRef(null)
-  const inputRef = useRef(null)
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
+  /**
+   * Auto-scroll to bottom when new messages are added
+   */
   useEffect(() => {
     scrollToBottom()
   }, [messages])
 
-  useEffect(() => {
-    // Simulate typing indicator
-    if (messages.length > 0 && messages[messages.length - 1].sender === 'user') {
-      setIsTyping(true)
-      const timer = setTimeout(() => setIsTyping(false), 2000)
-      return () => clearTimeout(timer)
-    }
-  }, [messages])
+  /**
+   * Scroll to bottom of messages container
+   */
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
 
+  /**
+   * Handle message submission
+   */
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (inputValue.trim()) {
+    console.log('📤 [CHAT INTERFACE] Message submitted:', inputValue)
+    
+    if (inputValue.trim() && !isLoading) {
+      console.log('✅ [CHAT INTERFACE] Valid message, sending to parent')
       onSendMessage(inputValue.trim())
       setInputValue('')
-      inputRef.current?.focus()
+    } else {
+      console.log('❌ [CHAT INTERFACE] Invalid submission - empty or loading')
     }
   }
 
-  const formatTimestamp = (timestamp) => {
-    return new Intl.DateTimeFormat('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    }).format(timestamp)
+  /**
+   * Handle input changes
+   */
+  const handleInputChange = (e) => {
+    setInputValue(e.target.value)
   }
 
-  const getPlaceholderText = () => {
-    if (pendingInput) {
-      return pendingInput.prompt || "Please provide the requested information..."
-    }
-    if (walletConnected) {
-      return "Ask about your portfolio, DeFi opportunities, or any blockchain question..."
-    }
-    return "Ask about crypto markets, DeFi protocols, wallet connection, or any blockchain data..."
+  /**
+   * Handle back button click
+   */
+  const handleBack = () => {
+    console.log('⬅️ [CHAT INTERFACE] Back button clicked')
+    onBack()
+  }
+
+  /**
+   * Format timestamp for display
+   */
+  const formatTime = (timestamp) => {
+    return new Date(timestamp).toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    })
   }
 
   return (
     <div className="chat-interface">
+      {/* Header */}
       <div className="chat-header">
-        <div className="chat-header-left">
-          {onBack && (
-            <button onClick={onBack} className="back-btn">
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-          )}
-          <div className="chat-title">
-            <div className="chat-icon">
-              <Bot className="w-5 h-5" />
-            </div>
-            <div>
-              <h2>Slate</h2>
-              <span className="status-indicator">
-                <div className={`status-dot ${isConnected ? 'connected' : 'disconnected'}`}></div>
-                {isConnected ? 'Online' : 'Offline'}
-              </span>
-            </div>
-          </div>
-        </div>
-        
-        <div className="chat-header-right">
-          {walletConnected && walletInfo && (
-            <div className="wallet-status">
-              <Wallet className="w-4 h-4" />
-              <span className="wallet-address">{walletInfo.formatted_address || walletInfo.address}</span>
-              <CheckCircle className="w-4 h-4 text-green-400" />
-            </div>
-          )}
-          <div className="chat-actions">
-            <button className="action-btn">
-              <Sparkles className="w-4 h-4" />
-            </button>
-          </div>
+        <div className="chat-title">
+          <Bot size={20} />
+          <span>SLATE Assistant</span>
         </div>
       </div>
 
+      {/* Messages Container */}
       <div className="messages-container">
-        <AnimatePresence>
-          {messages.map((message) => (
-            <motion.div
-              key={message.id}
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.95 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-              className={`message ${message.sender}`}
-            >
+        {messages.length === 0 ? (
+          <div className="welcome-message">
+            <Bot size={48} />
+            <h3>Welcome to SLATE!</h3>
+            <p>I'm your AI blockchain assistant. Ask me anything!</p>
+          </div>
+        ) : (
+          messages.map((message) => (
+            <div key={message.id} className={`message ${message.sender}`}>
               <div className="message-avatar">
                 {message.sender === 'user' ? (
-                  <User className="w-4 h-4" />
+                  <User size={16} />
                 ) : (
-                  <Bot className="w-4 h-4" />
+                  <Bot size={16} />
                 )}
               </div>
               <div className="message-content">
                 <div className="message-bubble">
                   <p>{message.text}</p>
-                  {message.needsUserInput && (
-                    <div className="input-request">
-                      <div className="input-request-icon">
-                        <Wallet className="w-4 h-4" />
-                      </div>
-                      <span>Waiting for your input...</span>
-                    </div>
-                  )}
                 </div>
-                <span className="message-time">
-                  {formatTimestamp(message.timestamp)}
-                </span>
+                <div className="message-time">
+                  {formatTime(message.timestamp)}
+                </div>
               </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-
-        {isTyping && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="message ai typing"
-          >
+            </div>
+          ))
+        )}
+        
+        {/* Typing Indicator */}
+        {isLoading && (
+          <div className="message ai">
             <div className="message-avatar">
-              <Bot className="w-4 h-4" />
+              <Bot size={16} />
             </div>
             <div className="message-content">
-              <div className="message-bubble">
-                <div className="typing-indicator">
-                  <div className="typing-dot"></div>
-                  <div className="typing-dot"></div>
-                  <div className="typing-dot"></div>
-                </div>
+              <div className="typing-indicator">
+                <div className="typing-dot"></div>
+                <div className="typing-dot"></div>
+                <div className="typing-dot"></div>
               </div>
             </div>
-          </motion.div>
+          </div>
         )}
-
-        {pendingInput && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="pending-input-notice"
-          >
-            <div className="pending-icon">
-              <Wallet className="w-5 h-5" />
-            </div>
-            <div className="pending-content">
-              <h4>Input Required</h4>
-              <p>{pendingInput.prompt}</p>
-            </div>
-          </motion.div>
-        )}
-
+        
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="input-form">
-        <div className="input-container">
-          <input
-            ref={inputRef}
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder={getPlaceholderText()}
-            className={`chat-input ${pendingInput ? 'pending' : ''}`}
-          />
-          <button
-            type="submit"
-            disabled={!inputValue.trim()}
-            className="send-btn"
-          >
-            <Send className="w-4 h-4" />
-          </button>
-        </div>
-        
-        {pendingInput && (
-          <div className="input-helper">
-            <span className="helper-text">
-              {pendingInput.type === 'wallet_address' && 
-                "Enter your TRON wallet address (starts with 'T', 34 characters)"
-              }
-            </span>
+      {/* Input Form */}
+      <div className="input-container">
+        <form onSubmit={handleSubmit} className="input-form">
+          <div className="input-wrapper">
+            <input
+              type="text"
+              value={inputValue}
+              onChange={handleInputChange}
+              placeholder="Type your message..."
+              className="message-input"
+              disabled={isLoading}
+            />
+            <button 
+              type="submit" 
+              className="send-button"
+              disabled={!inputValue.trim() || isLoading}
+            >
+              <Send size={18} />
+            </button>
           </div>
-        )}
-      </form>
+        </form>
+      </div>
     </div>
   )
 }

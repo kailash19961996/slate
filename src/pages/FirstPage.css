@@ -1,0 +1,207 @@
+/**
+ * FirstPage.css - Light & Minimalistic Welcome Screen
+ * =================================================
+ * 
+ * Clean, modern design with background image:
+ * - Background image from public folder
+ * - No boxes or cards - just content
+ * - Light, minimalistic styling
+ * - Modern fonts and colors
+ * - Simple animations
+ */
+
+.first-page {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-image: url('/background-chatgpt.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
+  padding: 2rem;
+}
+
+.first-page-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3rem;
+  max-width: 600px;
+  width: 100%;
+  animation: fadeInUp 0.8s ease-out;
+}
+
+/* Title Section */
+.title-section {
+  text-align: center;
+  animation: fadeInUp 0.8s ease-out;
+}
+
+.slate-title {
+  font-size: 4rem;
+  font-weight: 300;
+  color: #2c3e50;
+  margin: 0;
+  letter-spacing: 0.05em;
+  font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  text-shadow: none;
+}
+
+.slate-subtitle {
+  font-size: 1.2rem;
+  color: #6c757d;
+  margin: 0.5rem 0 0 0;
+  font-weight: 400;
+  font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.5;
+  text-shadow: none;
+}
+
+/* Input Section */
+.input-section {
+  width: 100%;
+  animation: fadeInUp 0.8s ease-out 0.2s both;
+}
+
+.message-form {
+  width: 100%;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid rgba(152, 106, 106, 0.3);
+  border-radius: 12px;
+  padding: 4px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.input-wrapper:focus-within {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: #007bff;
+  box-shadow: 
+    0 6px 25px rgba(0, 0, 0, 0.12),
+    0 0 0 3px rgba(0, 123, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.message-input {
+  flex: 1;
+  padding: 16px 20px;
+  font-size: 1rem;
+  border: none;
+  background: transparent;
+  color: #0b61b6;
+  outline: none;
+  font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 400;
+  width: 100%;
+}
+
+.message-input::placeholder {
+  color: #0c57a3;
+  font-weight: 300;
+}
+
+.send-button {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: none;
+  background: #007bff;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+}
+
+.send-button:hover:not(:disabled) {
+  background: #0056b3;
+  transform: scale(1.05) translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
+}
+
+.send-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Animations */
+@keyframes cardSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .first-page {
+    padding: 1rem;
+  }
+  
+  .first-page-content {
+    padding: 2rem 1.5rem;
+    gap: 1.5rem;
+    border-radius: 20px;
+  }
+  
+  .slate-title {
+    font-size: 2.8rem;
+  }
+  
+  .slate-subtitle {
+    font-size: 1rem;
+  }
+  
+  .message-input {
+    padding: 14px 18px;
+    font-size: 0.95rem;
+  }
+  
+  .send-button {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .first-page-content {
+    padding: 1.5rem;
+    gap: 1.2rem;
+    border-radius: 16px;
+  }
+  
+  .slate-title {
+    font-size: 2.2rem;
+  }
+  
+  .slate-subtitle {
+    font-size: 0.9rem;
+  }
+}

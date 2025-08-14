@@ -230,3 +230,4 @@ npm run test  # When tests are added
 ## License
 
 This project is for educational and development purposes. Ensure compliance with relevant blockchain and financial regulations in your jurisdiction.
+
