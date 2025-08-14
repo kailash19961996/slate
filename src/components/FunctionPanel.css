@@ -547,3 +547,218 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Wallet Widget Styles */
+.wallet-widget {
+  padding: 1.5rem;
+}
+
+.wallet-header {
+  margin-bottom: 1rem;
+}
+
+.wallet-status-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 20px;
+  color: #22c55e;
+  font-size: 0.875rem;
+  width: fit-content;
+}
+
+.wallet-address-section {
+  margin-bottom: 1.5rem;
+}
+
+.address-label {
+  font-size: 0.875rem;
+  color: #888;
+  margin-bottom: 0.5rem;
+}
+
+.address-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.address-text {
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 0.875rem;
+  color: #ccc;
+  flex: 1;
+}
+
+.copy-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 6px;
+  color: #ccc;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.copy-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.wallet-security {
+  padding: 1rem;
+  background: rgba(124, 91, 255, 0.05);
+  border: 1px solid rgba(124, 91, 255, 0.1);
+  border-radius: 8px;
+}
+
+.security-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #7c5bff;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.security-note {
+  font-size: 0.75rem;
+  color: #888;
+  line-height: 1.4;
+}
+
+/* Wallet Balance Widget */
+.wallet-balance-widget {
+  padding: 1.5rem;
+}
+
+.balance-header {
+  margin-bottom: 1rem;
+}
+
+.wallet-address-mini {
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 0.75rem;
+  color: #888;
+  padding: 0.25rem 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.main-balance {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.balance-amount {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.amount {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+}
+
+.usd-value {
+  font-size: 1rem;
+  color: #888;
+}
+
+.token-balances {
+  margin-bottom: 1.5rem;
+}
+
+.token-balances h4 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #ccc;
+  margin-bottom: 0.75rem;
+}
+
+.token-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.token-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.token-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.token-symbol {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: white;
+}
+
+.token-balance {
+  font-size: 0.75rem;
+  color: #888;
+  font-family: 'Monaco', 'Menlo', monospace;
+}
+
+.token-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #4ade80;
+}
+
+.balance-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.action-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.75rem 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #ccc;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.75rem;
+}
+
+.action-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(124, 91, 255, 0.3);
+  color: white;
+}
+
+.action-button svg {
+  width: 16px;
+  height: 16px;
+}

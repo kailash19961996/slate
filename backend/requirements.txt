@@ -1,7 +1,32 @@
+# SLATE Backend Dependencies
+
+# Core FastAPI and Server
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-websockets==12.0
+pydantic
 python-multipart==0.0.6
-pydantic==2.5.0
-httpx==0.25.2
+websockets==12.0
+
+# LangChain and LangGraph
+langchain==0.1.1
+langchain-openai==0.0.5
+langgraph==0.0.19
+langchain-core==0.1.10
+
+# OpenAI
+openai==1.6.1
+tiktoken==0.5.2
+
+# Environment and Configuration
 python-dotenv==1.0.0
+
+# HTTP and API
+httpx==0.25.2
+requests==2.31.0
+
+# Blockchain and Crypto
+base58==2.1.1
+tronpy==0.4.0
+
+# Utilities and Data Processing
+jsonschema==4.20.0

@@ -1,9 +1,9 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, TrendingUp, BarChart3, Activity, DollarSign, Zap, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { X, TrendingUp, BarChart3, Activity, DollarSign, Zap, ArrowUpRight, ArrowDownRight, Wallet, Shield, CheckCircle, Copy } from 'lucide-react'
 import CryptoChart from './CryptoChart'
 import './FunctionPanel.css'
 
-const FunctionPanel = ({ functions, onClearFunction }) => {
+const FunctionPanel = ({ functions, onClearFunction, onClearAll, walletConnected = false, walletInfo = null }) => {
   const renderFunctionContent = (func) => {
     switch (func.type) {
       case 'price_chart':
@@ -12,6 +12,11 @@ const FunctionPanel = ({ functions, onClearFunction }) => {
         return <DeFiMetricsWidget data={func.data} />
       case 'market_overview':
         return <MarketOverviewWidget data={func.data} />
+      case 'wallet_info':
+      case 'wallet_connected':
+        return <WalletInfoWidget data={func.data} />
+      case 'wallet_balance':
+        return <WalletBalanceWidget data={func.data} />
       default:
         return <div>Unknown function type</div>
     }
@@ -57,6 +62,7 @@ const FunctionPanel = ({ functions, onClearFunction }) => {
                     {func.type === 'price_chart' && <TrendingUp className="w-4 h-4" />}
                     {func.type === 'defi_metrics' && <BarChart3 className="w-4 h-4" />}
                     {func.type === 'market_overview' && <Activity className="w-4 h-4" />}
+                    {(func.type === 'wallet_info' || func.type === 'wallet_connected' || func.type === 'wallet_balance') && <Wallet className="w-4 h-4" />}
                     <span>{getFunctionTitle(func.type)}</span>
                   </div>
                   <button
@@ -86,6 +92,11 @@ const getFunctionTitle = (type) => {
       return 'DeFi Metrics'
     case 'market_overview':
       return 'Market Overview'
+    case 'wallet_info':
+    case 'wallet_connected':
+      return 'Wallet Connected'
+    case 'wallet_balance':
+      return 'Wallet Balance'
     default:
       return 'Function Call'
   }
@@ -252,6 +263,98 @@ const MarketOverviewWidget = ({ data }) => {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  )
+}
+
+const WalletInfoWidget = ({ data }) => {
+  const handleCopyAddress = () => {
+    navigator.clipboard.writeText(data.address)
+  }
+
+  return (
+    <div className="wallet-widget">
+      <div className="wallet-header">
+        <div className="wallet-status-badge">
+          <CheckCircle className="w-4 h-4" />
+          <span>Connected</span>
+        </div>
+      </div>
+
+      <div className="wallet-address-section">
+        <div className="address-label">Wallet Address</div>
+        <div className="address-container">
+          <span className="address-text">{data.formatted_address || data.address}</span>
+          <button 
+            onClick={handleCopyAddress}
+            className="copy-btn"
+            title="Copy address"
+          >
+            <Copy className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      <div className="wallet-security">
+        <div className="security-item">
+          <Shield className="w-4 h-4" />
+          <span>Secure Connection</span>
+        </div>
+        <div className="security-note">
+          Only public address is shared. Private keys remain secure.
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const WalletBalanceWidget = ({ data }) => {
+  return (
+    <div className="wallet-balance-widget">
+      <div className="balance-header">
+        <div className="wallet-address-mini">
+          {data.address ? `${data.address.slice(0, 6)}...${data.address.slice(-4)}` : 'Wallet'}
+        </div>
+      </div>
+
+      <div className="main-balance">
+        <div className="balance-amount">
+          <span className="amount">{data.balance || '0 TRX'}</span>
+          <span className="usd-value">{data.usd_value || '$0.00'}</span>
+        </div>
+      </div>
+
+      {data.tokens && data.tokens.length > 0 && (
+        <div className="token-balances">
+          <h4>Token Holdings</h4>
+          <div className="token-list">
+            {data.tokens.map((token, index) => (
+              <div key={index} className="token-item">
+                <div className="token-info">
+                  <span className="token-symbol">{token.symbol}</span>
+                  <span className="token-balance">{token.balance}</span>
+                </div>
+                <div className="token-value">{token.value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="balance-actions">
+        <button className="action-button">
+          <ArrowUpRight className="w-4 h-4" />
+          <span>Send</span>
+        </button>
+        <button className="action-button">
+          <ArrowDownRight className="w-4 h-4" />
+          <span>Receive</span>
+        </button>
+        <button className="action-button">
+          <Zap className="w-4 h-4" />
+          <span>DeFi</span>
+        </button>
       </div>
     </div>
   )

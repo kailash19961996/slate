@@ -1,351 +1,421 @@
 """
-Crypto Agent Backend - FastAPI server with WebSocket support for real-time crypto data
+SLATE Backend - LangGraph Agent Orchestrator
+Main orchestrator that handles all agent interactions and sends responses to frontend
 """
 
 import asyncio
 import json
-import random
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
-import httpx
+import uuid
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import uvicorn
 
+from langchain_openai import ChatOpenAI
+from langchain.schema import HumanMessage, SystemMessage
+from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
+
+from dotenv import load_dotenv
+import os
+
+# Import our modules
+from util import safe_json_parse, format_tron_address, validate_address
+from prompt import SYSTEM_PROMPTS, get_wallet_prompt
+from tools import get_all_tools, WalletConnectionTool
+
+# Load environment variables
+load_dotenv()
 
 app = FastAPI(
-    title="Crypto Agent API",
-    description="AI-powered crypto intelligence backend",
+    title="SLATE Backend API",
+    description="AI-powered blockchain agent with LangGraph orchestration",
     version="1.0.0"
 )
 
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# WebSocket connection manager
+# -------------------------
+# LangGraph State & Models
+# -------------------------
+
+class AgentState(BaseModel):
+    messages: List[Dict[str, Any]] = Field(default_factory=list)
+    trace: List[Dict[str, Any]] = Field(default_factory=list)
+    user_context: Dict[str, Any] = Field(default_factory=dict)  # Store wallet info, etc.
+    pending_requests: List[Dict[str, Any]] = Field(default_factory=list)  # Store incomplete requests
+    session_id: str = ""
+
+class ChatMessage(BaseModel):
+    message: str
+    session_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+
+class ChatResponse(BaseModel):
+    reply: str
+    function_calls: List[Dict[str, Any]] = Field(default_factory=list)
+    needs_user_input: bool = False
+    user_input_prompt: Optional[str] = None
+    trace: List[Dict[str, Any]] = Field(default_factory=list)
+
+# -------------------------
+# WebSocket Manager
+# -------------------------
+
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: List[WebSocket] = []
+        self.active_connections: Dict[str, WebSocket] = {}
 
-    async def connect(self, websocket: WebSocket):
+    async def connect(self, websocket: WebSocket, session_id: str):
         await websocket.accept()
-        self.active_connections.append(websocket)
+        self.active_connections[session_id] = websocket
 
-    def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+    def disconnect(self, session_id: str):
+        if session_id in self.active_connections:
+            del self.active_connections[session_id]
 
-    async def send_personal_message(self, message: str, websocket: WebSocket):
-        await websocket.send_text(message)
-
-    async def broadcast(self, message: str):
-        for connection in self.active_connections:
+    async def send_personal_message(self, message: str, session_id: str):
+        if session_id in self.active_connections:
             try:
-                await connection.send_text(message)
+                await self.active_connections[session_id].send_text(message)
             except:
-                # Connection was closed, remove it
-                self.active_connections.remove(connection)
+                self.disconnect(session_id)
+
+    async def send_function_call(self, session_id: str, function_data: Dict[str, Any]):
+        """Send function call to frontend for rendering"""
+        message = {
+            "type": "function_call",
+            "data": {
+                "id": f"{datetime.now().timestamp()}",
+                **function_data
+            }
+        }
+        await self.send_personal_message(json.dumps(message), session_id)
 
 manager = ConnectionManager()
 
-# Pydantic models
-class ChatMessage(BaseModel):
-    message: str
-    timestamp: Optional[datetime] = None
+# -------------------------
+# LangGraph Agent Setup
+# -------------------------
 
-class CryptoPrice(BaseModel):
-    symbol: str
-    price: float
-    change_24h: float
-    volume_24h: str
-    market_cap: str
+MODEL_NAME = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-class DeFiMetrics(BaseModel):
-    symbol: str
-    tvl: str
-    gas_price: int
-    staking_rate: float
-    protocols: List[Dict[str, str]]
+if not OPENAI_API_KEY:
+    raise ValueError("OPENAI_API_KEY environment variable is required")
 
-class MarketOverview(BaseModel):
-    total_market_cap: str
-    dominance: Dict[str, float]
-    fear_greed_index: int
-    top_movers: List[Dict[str, float]]
+llm = ChatOpenAI(model=MODEL_NAME, temperature=0, api_key=OPENAI_API_KEY)
 
-# Mock data generators
-def generate_price_data(symbol: str) -> CryptoPrice:
-    """Generate mock price data for a cryptocurrency"""
-    base_prices = {
-        "BTC": 43000,
-        "ETH": 2800,
-        "SOL": 85,
-        "AVAX": 28,
-        "MATIC": 0.95,
-        "ADA": 0.48
-    }
-    
-    base_price = base_prices.get(symbol, 100)
-    variation = random.uniform(-0.1, 0.1)
-    current_price = base_price * (1 + variation)
-    change_24h = random.uniform(-15, 15)
-    
-    return CryptoPrice(
-        symbol=symbol,
-        price=round(current_price, 2),
-        change_24h=round(change_24h, 2),
-        volume_24h=f"{random.uniform(1, 50):.1f}B",
-        market_cap=f"{random.uniform(10, 800):.1f}B"
-    )
+# Get all available tools
+ALL_TOOLS = get_all_tools()
+tool_bound_llm = llm.bind_tools(ALL_TOOLS)
 
-def generate_defi_metrics(symbol: str) -> DeFiMetrics:
-    """Generate mock DeFi metrics"""
-    protocols = [
-        {"name": "Uniswap", "tvl": f"{random.uniform(5, 15):.1f}B"},
-        {"name": "Aave", "tvl": f"{random.uniform(8, 20):.1f}B"},
-        {"name": "Compound", "tvl": f"{random.uniform(3, 12):.1f}B"},
-        {"name": "Curve", "tvl": f"{random.uniform(2, 8):.1f}B"},
-    ]
+def agent_node(state: AgentState) -> AgentState:
+    """Main agent node that processes user messages and decides on actions"""
     
-    return DeFiMetrics(
-        symbol=symbol,
-        tvl=f"{random.uniform(40, 60):.1f}B",
-        gas_price=random.randint(15, 50),
-        staking_rate=round(random.uniform(3, 8), 2),
-        protocols=protocols
-    )
+    # Build system prompt with context
+    system_content = SYSTEM_PROMPTS["main_agent"]
+    if state.user_context.get("wallet_address"):
+        system_content += f"\n\nUser's wallet address: {state.user_context['wallet_address']}"
+        system_content += "\nYou have access to wallet information and can help with balance checks and transactions."
+    
+    # Add information about pending requests
+    if state.pending_requests:
+        system_content += f"\n\nPending requests requiring user input: {json.dumps(state.pending_requests)}"
+    
+    # Build message history
+    messages = [SystemMessage(content=system_content)]
+    
+    # Add conversation history
+    for msg in state.messages:
+        if msg.get("role") == "user":
+            messages.append(HumanMessage(content=msg["content"]))
+        elif msg.get("role") == "assistant":
+            messages.append(SystemMessage(content=msg["content"]))
+    
+    # Get LLM response
+    response = tool_bound_llm.invoke(messages)
+    
+    # Add assistant response to messages
+    state.messages.append({
+        "role": "assistant", 
+        "content": response.content,
+        "timestamp": datetime.now().isoformat()
+    })
+    
+    # Process tool calls if any
+    if response.tool_calls:
+        for tool_call in response.tool_calls:
+            tool_name = tool_call["name"]
+            tool_args = tool_call.get("args", {})
+            
+            # Log tool call in trace
+            state.trace.append({
+                "type": "tool_call",
+                "tool": tool_name,
+                "args": tool_args,
+                "timestamp": datetime.now().isoformat()
+            })
+            
+            # Execute tool
+            try:
+                tool_obj = next(t for t in ALL_TOOLS if t.name == tool_name)
+                
+                # Special handling for wallet connection tool
+                if tool_name == "request_wallet_connection":
+                    # Check if we already have wallet address
+                    if state.user_context.get("wallet_address"):
+                        result = f"Wallet already connected: {state.user_context['wallet_address']}"
+                    else:
+                        # Request wallet address from user
+                        state.pending_requests.append({
+                            "type": "wallet_address",
+                            "prompt": "Please provide your wallet address to connect:",
+                            "tool_call_id": tool_call.get("id", str(uuid.uuid4()))
+                        })
+                        result = "Requesting wallet address from user..."
+                
+                else:
+                    # Execute other tools normally
+                    result = tool_obj.invoke(tool_args)
+                
+                # Log tool result
+                state.trace.append({
+                    "type": "tool_result",
+                    "tool": tool_name,
+                    "result": str(result)[:500],  # Truncate long results
+                    "timestamp": datetime.now().isoformat()
+                })
+                
+                # Add tool result to messages
+                state.messages.append({
+                    "role": "tool",
+                    "name": tool_name,
+                    "content": str(result)
+                })
+                
+            except Exception as e:
+                error_msg = f"Error executing tool {tool_name}: {str(e)}"
+                state.trace.append({
+                    "type": "tool_error",
+                    "tool": tool_name,
+                    "error": error_msg
+                })
+                state.messages.append({
+                    "role": "tool",
+                    "name": tool_name,
+                    "content": error_msg
+                })
+    
+    return state
 
-def generate_market_overview() -> MarketOverview:
-    """Generate mock market overview data"""
-    return MarketOverview(
-        total_market_cap=f"{random.uniform(1.5, 2.2):.2f}T",
-        dominance={"BTC": round(random.uniform(40, 45), 1), "ETH": round(random.uniform(17, 22), 1)},
-        fear_greed_index=random.randint(20, 80),
-        top_movers=[
-            {"symbol": "SOL", "change": round(random.uniform(-20, 20), 1)},
-            {"symbol": "AVAX", "change": round(random.uniform(-20, 20), 1)},
-            {"symbol": "MATIC", "change": round(random.uniform(-20, 20), 1)},
-            {"symbol": "ADA", "change": round(random.uniform(-20, 20), 1)},
-        ]
-    )
+def should_continue(state: AgentState) -> str:
+    """Determine if we should continue processing or end"""
+    return END
 
-def generate_chart_data(symbol: str, timeframe: str = "24h") -> List[Dict]:
-    """Generate mock chart data"""
-    base_price = {"BTC": 43000, "ETH": 2800}.get(symbol, 100)
-    points = 24 if timeframe == "24h" else 168
-    
-    data = []
-    current_price = base_price
-    
-    for i in range(points):
-        variation = random.uniform(-0.02, 0.02)
-        current_price *= (1 + variation)
-        
-        timestamp = datetime.now() - timedelta(hours=points-i)
-        
-        data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": round(current_price, 2),
-            "volume": random.uniform(100000, 5000000)
-        })
-    
-    return data
+# Build the graph
+workflow = StateGraph(AgentState)
+workflow.add_node("agent", agent_node)
+workflow.set_entry_point("agent")
+workflow.add_edge("agent", END)
 
-# AI Agent functions
-async def process_crypto_query(message: str) -> Dict:
-    """Process a crypto-related query and return appropriate function calls"""
-    message_lower = message.lower()
-    
-    function_calls = []
-    
-    # Determine what functions to call based on the message
-    if any(term in message_lower for term in ["bitcoin", "btc"]):
-        price_data = generate_price_data("BTC")
-        chart_data = generate_chart_data("BTC")
-        function_calls.append({
-            "type": "price_chart",
-            "data": {
-                "symbol": "BTC",
-                "price": price_data.price,
-                "change": price_data.change_24h,
-                "volume": price_data.volume_24h,
-                "chart_data": chart_data
-            }
-        })
-    
-    if any(term in message_lower for term in ["ethereum", "eth"]):
-        defi_data = generate_defi_metrics("ETH")
-        function_calls.append({
-            "type": "defi_metrics",
-            "data": {
-                "symbol": "ETH",
-                "tvl": defi_data.tvl,
-                "gasPrice": defi_data.gas_price,
-                "stakingRate": defi_data.staking_rate,
-                "protocols": defi_data.protocols
-            }
-        })
-    
-    if any(term in message_lower for term in ["market", "overview", "general"]):
-        market_data = generate_market_overview()
-        function_calls.append({
-            "type": "market_overview",
-            "data": {
-                "totalCap": market_data.total_market_cap,
-                "dominance": market_data.dominance,
-                "fearGreed": market_data.fear_greed_index,
-                "topMovers": market_data.top_movers
-            }
-        })
-    
-    # Generate AI response
-    if "bitcoin" in message_lower or "btc" in message_lower:
-        ai_response = "I'm analyzing Bitcoin data for you. Let me pull the latest price charts and market information."
-    elif "ethereum" in message_lower or "eth" in message_lower:
-        ai_response = "Fetching Ethereum analytics and on-chain metrics. I'll show you the current trends and DeFi data."
-    elif "market" in message_lower:
-        ai_response = "Getting real-time market data across all major cryptocurrencies. I'll display the top movers and market sentiment."
-    else:
-        ai_response = "I'm processing your request and gathering relevant crypto data. The information will appear on the right panel."
-    
-    return {
-        "ai_response": ai_response,
-        "function_calls": function_calls
-    }
+# Add memory for conversation persistence
+memory = MemorySaver()
+agent_graph = workflow.compile(checkpointer=memory)
 
-# API Routes
+# -------------------------
+# API Endpoints
+# -------------------------
+
 @app.get("/")
 async def root():
-    return {"message": "Crypto Agent API is running"}
+    return {"message": "SLATE Backend API is running", "version": "1.0.0"}
 
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now()}
 
-@app.get("/api/crypto/{symbol}")
-async def get_crypto_price(symbol: str):
-    """Get current price data for a cryptocurrency"""
-    try:
-        price_data = generate_price_data(symbol.upper())
-        return price_data
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Symbol {symbol} not found")
-
-@app.get("/api/defi/{symbol}")
-async def get_defi_metrics(symbol: str):
-    """Get DeFi metrics for a cryptocurrency"""
-    try:
-        defi_data = generate_defi_metrics(symbol.upper())
-        return defi_data
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=f"DeFi data for {symbol} not found")
-
-@app.get("/api/market/overview")
-async def get_market_overview():
-    """Get market overview data"""
-    return generate_market_overview()
-
-@app.get("/api/chart/{symbol}")
-async def get_chart_data(symbol: str, timeframe: str = "24h"):
-    """Get chart data for a cryptocurrency"""
-    try:
-        chart_data = generate_chart_data(symbol.upper(), timeframe)
-        return {"symbol": symbol.upper(), "timeframe": timeframe, "data": chart_data}
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Chart data for {symbol} not found")
-
-@app.post("/api/chat")
+@app.post("/api/chat", response_model=ChatResponse)
 async def chat_endpoint(message: ChatMessage):
-    """Process a chat message and return AI response with function calls"""
+    """Process a chat message through the LangGraph agent"""
     try:
-        result = await process_crypto_query(message.message)
-        return {
-            "timestamp": datetime.now(),
-            "user_message": message.message,
-            "ai_response": result["ai_response"],
-            "function_calls": result["function_calls"]
+        # Create initial state
+        initial_state = {
+            "messages": [{"role": "user", "content": message.message}],
+            "trace": [],
+            "user_context": {},
+            "pending_requests": [],
+            "session_id": message.session_id
         }
+        
+        # Run the agent
+        config = {"configurable": {"thread_id": message.session_id}}
+        result = agent_graph.invoke(initial_state, config=config)
+        
+        # Extract response
+        assistant_messages = [msg for msg in result["messages"] if msg.get("role") == "assistant"]
+        reply = assistant_messages[-1]["content"] if assistant_messages else "I'm here to help!"
+        
+        # Check for pending requests
+        needs_input = len(result["pending_requests"]) > 0
+        input_prompt = result["pending_requests"][0]["prompt"] if needs_input else None
+        
+        # Generate function calls based on the conversation
+        function_calls = await generate_function_calls(message.message, result)
+        
+        return ChatResponse(
+            reply=reply,
+            function_calls=function_calls,
+            needs_user_input=needs_input,
+            user_input_prompt=input_prompt,
+            trace=result["trace"]
+        )
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing message: {str(e)}")
 
-# WebSocket endpoint
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
+@app.post("/api/wallet/connect")
+async def connect_wallet(data: dict):
+    """Handle wallet connection with address"""
+    session_id = data.get("session_id")
+    wallet_address = data.get("wallet_address")
+    
+    if not session_id or not wallet_address:
+        raise HTTPException(status_code=400, detail="Missing session_id or wallet_address")
+    
+    # Validate address format
+    if not validate_address(wallet_address):
+        raise HTTPException(status_code=400, detail="Invalid wallet address format")
+    
+    # Update agent state with wallet info
+    config = {"configurable": {"thread_id": session_id}}
+    current_state = agent_graph.get_state(config)
+    
+    if current_state:
+        # Update user context
+        current_state.values["user_context"]["wallet_address"] = wallet_address
+        current_state.values["user_context"]["connected_at"] = datetime.now().isoformat()
+        
+        # Clear pending wallet requests
+        current_state.values["pending_requests"] = [
+            req for req in current_state.values["pending_requests"] 
+            if req.get("type") != "wallet_address"
+        ]
+        
+        # Trigger wallet info function call
+        await manager.send_function_call(session_id, {
+            "type": "wallet_connected",
+            "data": {
+                "address": wallet_address,
+                "formatted_address": format_tron_address(wallet_address),
+                "status": "connected"
+            }
+        })
+        
+        # TODO: Add actual wallet balance fetch here
+        await manager.send_function_call(session_id, {
+            "type": "wallet_balance",
+            "data": {
+                "address": wallet_address,
+                "balance": "1,234.56 TRX",  # Mock data for now
+                "usd_value": "$85.42",
+                "tokens": [
+                    {"symbol": "USDT", "balance": "500.00", "value": "$500.00"},
+                    {"symbol": "JST", "balance": "1000.00", "value": "$25.30"}
+                ]
+            }
+        })
+    
+    return {"status": "success", "address": wallet_address}
+
+async def generate_function_calls(user_message: str, agent_result: Dict) -> List[Dict[str, Any]]:
+    """Generate function calls based on the conversation and agent result"""
+    function_calls = []
+    message_lower = user_message.lower()
+    
+    # Check if wallet connection was requested and completed
+    if "wallet" in message_lower and "connect" in message_lower:
+        if agent_result["user_context"].get("wallet_address"):
+            function_calls.append({
+                "type": "wallet_info",
+                "data": {
+                    "address": agent_result["user_context"]["wallet_address"],
+                    "status": "connected"
+                }
+            })
+    
+    return function_calls
+
+# -------------------------
+# WebSocket Endpoint
+# -------------------------
+
+@app.websocket("/ws/{session_id}")
+async def websocket_endpoint(websocket: WebSocket, session_id: str):
+    await manager.connect(websocket, session_id)
     try:
         while True:
             # Receive message from client
             data = await websocket.receive_text()
             message_data = json.loads(data)
             
-            # Process the message
-            result = await process_crypto_query(message_data["message"])
-            
-            # Send AI response
-            response = {
-                "type": "ai_response",
-                "data": {
-                    "message": result["ai_response"],
-                    "timestamp": datetime.now().isoformat()
-                }
-            }
-            await manager.send_personal_message(json.dumps(response), websocket)
-            
-            # Send function calls with delay for better UX
-            for i, func_call in enumerate(result["function_calls"]):
-                await asyncio.sleep(1 + i * 0.5)  # Stagger function calls
-                func_response = {
-                    "type": "function_call",
-                    "data": {
-                        "id": f"{datetime.now().timestamp()}_{i}",
-                        **func_call
-                    }
-                }
-                await manager.send_personal_message(json.dumps(func_response), websocket)
+            # Handle different message types
+            if message_data.get("type") == "chat":
+                # Process chat message
+                chat_message = ChatMessage(
+                    message=message_data["message"],
+                    session_id=session_id
+                )
                 
-    except WebSocketDisconnect:
-        manager.disconnect(websocket)
-    except Exception as e:
-        print(f"WebSocket error: {e}")
-        manager.disconnect(websocket)
-
-# Background task for real-time price updates
-async def broadcast_price_updates():
-    """Broadcast real-time price updates to all connected clients"""
-    while True:
-        try:
-            # Generate price updates for major cryptos
-            symbols = ["BTC", "ETH", "SOL", "AVAX"]
-            
-            for symbol in symbols:
-                price_data = generate_price_data(symbol)
-                update = {
-                    "type": "price_update",
+                # Get response from agent
+                response = await chat_endpoint(chat_message)
+                
+                # Send AI response
+                await manager.send_personal_message(json.dumps({
+                    "type": "ai_response",
                     "data": {
-                        "symbol": symbol,
-                        "price": price_data.price,
-                        "change": price_data.change_24h,
+                        "message": response.reply,
+                        "timestamp": datetime.now().isoformat(),
+                        "needs_user_input": response.needs_user_input,
+                        "user_input_prompt": response.user_input_prompt
+                    }
+                }), session_id)
+                
+                # Send function calls with delay
+                for i, func_call in enumerate(response.function_calls):
+                    await asyncio.sleep(0.5 + i * 0.3)
+                    await manager.send_function_call(session_id, func_call)
+            
+            elif message_data.get("type") == "wallet_address":
+                # Handle wallet address input
+                await connect_wallet({
+                    "session_id": session_id,
+                    "wallet_address": message_data["wallet_address"]
+                })
+                
+                # Send confirmation
+                await manager.send_personal_message(json.dumps({
+                    "type": "ai_response",
+                    "data": {
+                        "message": f"Great! I've connected to your wallet. Let me fetch your balance and information.",
                         "timestamp": datetime.now().isoformat()
                     }
-                }
-                await manager.broadcast(json.dumps(update))
+                }), session_id)
                 
-            await asyncio.sleep(30)  # Update every 30 seconds
-            
-        except Exception as e:
-            print(f"Error in price updates: {e}")
-            await asyncio.sleep(60)
-
-@app.on_event("startup")
-async def startup_event():
-    """Start background tasks when the server starts"""
-    asyncio.create_task(broadcast_price_updates())
+    except WebSocketDisconnect:
+        manager.disconnect(session_id)
+    except Exception as e:
+        print(f"WebSocket error for {session_id}: {e}")
+        manager.disconnect(session_id)
 
 if __name__ == "__main__":
     uvicorn.run(
