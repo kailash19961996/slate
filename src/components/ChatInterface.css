@@ -15,16 +15,14 @@
   flex-direction: column;
   height: 100%;
   color: #2c3e50;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255,255,255,0.55);
+  border: none;
 }
 
 /* Messages Container */
 .messages-container {
   flex: 1;
-  padding: 1rem 1.5rem;
+  padding: 0.75rem 1rem;
   overflow-y: auto;
   scroll-behavior: smooth;
   display: flex;
@@ -35,7 +33,7 @@
 
 /* Custom Scrollbar */
 .messages-container::-webkit-scrollbar {
-  width: 6px;
+  width: 3px;
 }
 
 .messages-container::-webkit-scrollbar-track {
@@ -58,9 +56,10 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  padding: 1rem 1.5rem;
-  background: transparent;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 0.75rem 1rem;
+  background: rgba(255,255,255,0.55);
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+  border-radius: 12px 12px 0 0;
 }
 
 .chat-title {
@@ -101,8 +100,8 @@
 /* Message Styling */
 .message {
   display: flex;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
   animation: fadeInUp 0.3s ease-out;
 }
 
@@ -151,7 +150,7 @@
 }
 
 .message-bubble {
-  padding: 0.75rem 1rem;
+  padding: 0.55rem 0.8rem;
   border-radius: 16px;
   margin-bottom: 0.25rem;
   position: relative;
@@ -227,9 +226,10 @@
 
 /* Input Container */
 .input-container {
-  padding: 1rem 1.5rem;
-  background: transparent;
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 0.75rem 1rem;
+  background: rgba(255,255,255,0.55);
+  border-top: 1px solid rgba(0,0,0,0.08);
+  border-radius: 0 0 12px 12px;
 }
 
 .input-form {

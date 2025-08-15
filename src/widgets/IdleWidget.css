@@ -21,19 +21,18 @@
 }
 
 .idle-dots .dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
+  width: 10px;
+  height: 10px;
   background: #667eea;
-  animation: idleBlink 1.6s infinite ease-in-out;
+  animation: idleSquare 1.6s infinite ease-in-out;
 }
 
-.idle-dots .dot:nth-child(2) { animation-delay: 0.2s; }
-.idle-dots .dot:nth-child(3) { animation-delay: 0.4s; }
+.idle-dots .dot:nth-child(2) { animation-delay: 0.2s; background:#5e9cff; }
+.idle-dots .dot:nth-child(3) { animation-delay: 0.4s; background:#88b1ff; }
 
-@keyframes idleBlink {
-  0%, 60%, 100% { opacity: 0.3; }
-  30% { opacity: 1; }
+@keyframes idleSquare {
+  0%, 60%, 100% { transform: scale(0.7); opacity:0.5; }
+  30% { transform: scale(1); opacity:1; }
 }
 
 .idle-widget p {
