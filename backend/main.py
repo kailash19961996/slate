@@ -39,37 +39,28 @@ print(f"🔑 [CONFIG] OpenAI API Key configured: {'Yes' if OPENAI_API_KEY else '
 print(f"🤖 [CONFIG] Model: {OPEN_AI_MODEL}")
 
 @tool
-def connect_tronlink_wallet(user_request: str) -> Dict[str, Any]:
-    """Tool for TronLink wallet connection."""
+def get_wallet_info(user_request: str) -> Dict[str, Any]:
+    """Unified tool – ask the frontend to connect TronLink (if needed) and fetch full wallet snapshot."""
     return {
-        "type": "wallet_connection_request",
-        "message": "Connect your TronLink wallet!",
-        "frontend_action": "show_wallet_widget"
+        "type": "wallet_info_request",
+        "message": "Connect TronLink wallet and fetch full wallet details (address, balance, resources)."
     }
 
-@tool
-def request_wallet_details(spec: str) -> Dict[str, Any]:
-    """Ask the frontend to fetch wallet details (TRX, tokens, etc.)."""
-    return {
-        "type": "wallet_details_request",
-        "message": "Fetch wallet details from the browser wallet.",
-        "fields": ["trx_balance"]  # extend as needed (e.g., tokens)
-    }
+
 def create_agent():
     print("🤖 [AGENT] Creating agent...")
     if OPENAI_API_KEY:
         print("✅ [AGENT] OpenAI API key found, creating LangGraph agent")
         try:
             llm = ChatOpenAI(model=OPEN_AI_MODEL, temperature=0.2, api_key=OPENAI_API_KEY)
-            tools = [connect_tronlink_wallet, request_wallet_details]
+            tools = [get_wallet_info]
             print(f"🛠️ [AGENT] Loaded {len(tools)} tools")
             
             prompt = ChatPromptTemplate.from_messages([
-                ("system", "You are SLATE. If user asks to CONNECT a wallet → call connect_tronlink_wallet. \
-                If user asks for WALLET DETAILS/BALANCE/ADDRESS → call request_wallet_details. \
-                The frontend will execute these and report results."),
+                ("system",
+                "You are SLATE, a blockchain assistant. Any user query that involves TronLink, connecting wallet, wallet address, balance, gas/energy, bandwidth, or resources MUST trigger the get_wallet_info tool. The frontend will handle the connection, gather details, and report results back."),
                 MessagesPlaceholder("chat_history"),
-                ("human", "{input}"),
+                ("human","{input}"),
                 MessagesPlaceholder("agent_scratchpad"),
             ])
             
@@ -80,7 +71,7 @@ def create_agent():
         except Exception as e:
             print(f"❌ [AGENT] Error creating agent: {str(e)}")
             return None
-        else:
+    else:
             print("⚠️ [AGENT] No OpenAI API key, using mock responses")
             return None
 
@@ -173,18 +164,9 @@ async def chat_endpoint(message: ChatMessage):
             
             for action, observation in result.get("intermediate_steps", []):
                 print(f"🛠️ [CHAT] Tool used: {action.tool}")
-                if action.tool == "connect_tronlink_wallet":
-                    function_calls.append({
-                        "type": "wallet_connection_request",
-                        "data": observation
-                    })
-                    print("💳 [CHAT] Wallet connection tool triggered")
-                if action.tool == "request_wallet_details":
-                    function_calls.append({
-                    "type": "wallet_details_request",
-                    "data": observation
-                     })
-                    print("📊 [CHAT] Wallet details tool triggered")
+                if action.tool == "get_wallet_info":
+                    function_calls.append({"type": "wallet_info_request", "data": observation})
+                    print("📊 [CHAT] Wallet info tool triggered")
             
             session["chat_history"].extend([("human", message.message), ("ai", reply)])
         else:

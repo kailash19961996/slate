@@ -10,40 +10,30 @@
  * - Only appears when wallet data is available
  */
 
-import { Wallet, Copy, ExternalLink, CheckCircle } from 'lucide-react'
-import { useState } from 'react'
+import { Wallet, CheckCircle } from 'lucide-react'
 import './WalletWidget.css'
 
 const WalletWidget = ({ walletData }) => {
   console.log('💳 [WALLET WIDGET] WalletWidget component rendering')
   console.log('📊 [WALLET WIDGET] Wallet data received:', walletData)
   
-  const [copied, setCopied] = useState(false)
-
-  /**
-   * Handle copying wallet address to clipboard
-   */
-  const handleCopyAddress = async () => {
-    if (walletData?.address) {
-      try {
-        await navigator.clipboard.writeText(walletData.address)
-        setCopied(true)
-        console.log('📋 [WALLET WIDGET] Address copied to clipboard')
-        
-        // Reset copied state after 2 seconds
-        setTimeout(() => setCopied(false), 2000)
-      } catch (error) {
-        console.error('❌ [WALLET WIDGET] Failed to copy address:', error)
-      }
-    }
-  }
 
   /**
    * Format wallet address for display
    */
   const formatAddress = (address) => {
-    if (!address) return 'N/A'
-    return `${address.slice(0, 6)}...${address.slice(-4)}`
+    return address || 'N/A'
+  }
+
+  const handleCopyAddress = async () => {
+    if (walletData?.address) {
+      try {
+        await navigator.clipboard.writeText(walletData.address)
+        console.log('📋 [WALLET WIDGET] Address copied to clipboard')
+      } catch (error) {
+        console.error('❌ [WALLET WIDGET] Failed to copy address:', error)
+      }
+    }
   }
 
   // Handle case where no wallet data is provided
@@ -64,64 +54,56 @@ const WalletWidget = ({ walletData }) => {
 
   return (
     <div className="wallet-widget">
-      <div className="wallet-content">
-        {/* Wallet Header */}
-        <div className="wallet-header">
-          <div className="wallet-icon">
-            <Wallet size={32} />
-          </div>
-          <div className="wallet-status">
-            <CheckCircle size={16} />
-            <span>Connected</span>
-          </div>
+      {/* Header with icon + status */}
+      <div className="wallet-header">
+        <div className="wallet-icon">
+          <Wallet size={28} />
+        </div>
+        <div className="wallet-status">
+          <CheckCircle size={14} />
+          <span>Connected</span>
+        </div>
+      </div>
+
+      {/* Info list */}
+      <div className="wallet-info">
+        {/* Address */}
+        <div className="wallet-field">
+          <span className="wallet-label">Address</span>
+          <span className="wallet-value wallet-address">
+            {formatAddress(walletData.address)}
+          </span>
         </div>
 
-        {/* Wallet Address */}
-        <div className="wallet-address">
-          <label>Wallet Address</label>
-          <div className="address-container">
-            <span className="address-text">{formatAddress(walletData.address)}</span>
-            <button 
-              className="copy-button"
-              onClick={handleCopyAddress}
-              title="Copy full address"
-            >
-              {copied ? <CheckCircle size={14} /> : <Copy size={14} />}
-            </button>
+        {/* TRX Balance */}
+        <div className="wallet-field">
+          <span className="wallet-label">TRX Balance</span>
+          <span className="wallet-value">{walletData.core?.trx?.toFixed?.(6) || walletData.balance || '0'} TRX</span>
+        </div>
+
+        {/* Energy */}
+        {walletData.resources?.energy && (
+          <div className="wallet-field">
+            <span className="wallet-label">Energy</span>
+            <span className="wallet-value">{walletData.resources.energy.used}/{walletData.resources.energy.limit}</span>
           </div>
-        </div>
+        )}
 
-        {/* Balance Information */}
-        <div className="balance-info">
-          <div className="balance-item">
-            <label>TRX Balance</label>
-            <span className="balance-value">{walletData.balance || '0 TRX'}</span>
+        {/* Bandwidth */}
+        {walletData.resources?.bandwidth && (
+          <div className="wallet-field">
+            <span className="wallet-label">Bandwidth</span>
+            <span className="wallet-value">{walletData.resources.bandwidth.used}/{walletData.resources.bandwidth.limit}</span>
           </div>
-          
-          {walletData.usdValue && (
-            <div className="balance-item">
-              <label>USD Value</label>
-              <span className="balance-value">{walletData.usdValue}</span>
-            </div>
-          )}
-        </div>
+        )}
 
-        {/* Action Buttons */}
-        <div className="wallet-actions">
-          <button className="action-button primary">
-            <ExternalLink size={16} />
-            View on Explorer
-          </button>
-          <button className="action-button secondary">
-            Refresh Balance
-          </button>
-        </div>
-
-        {/* Connection Status Indicator */}
-        <div className="connection-status">
-          <div className="status-dot connected"></div>
-          <span>Connected to TRON Network</span>
-        </div>
+        {/* Network */}
+        {walletData.network && (
+          <div className="wallet-field">
+            <span className="wallet-label">Network</span>
+            <span className="wallet-value">{walletData.network}</span>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -11,23 +11,29 @@
 
 .idle-widget {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 15px;
-  color: #6c757d;
 }
 
-.pulsating-bubble {
-  width: 30px;
-  height: 30px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: 2px solid rgba(102, 126, 234, 0.3);
+.idle-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.idle-dots .dot {
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  animation: pulse-slow 3s infinite ease-in-out;
-  box-shadow: 
-    0 4px 15px rgba(102, 126, 234, 0.2),
-    0 0 0 0 rgba(102, 126, 234, 0.4);
+  background: #667eea;
+  animation: idleBlink 1.6s infinite ease-in-out;
+}
+
+.idle-dots .dot:nth-child(2) { animation-delay: 0.2s; }
+.idle-dots .dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes idleBlink {
+  0%, 60%, 100% { opacity: 0.3; }
+  30% { opacity: 1; }
 }
 
 .idle-widget p {
@@ -36,28 +42,4 @@
   font-weight: 500;
   color: #6c757d;
   font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-@keyframes pulse-slow {
-  0% { 
-    transform: scale(0.8); 
-    opacity: 0.7;
-    box-shadow: 
-      0 4px 15px rgba(102, 126, 234, 0.2),
-      0 0 0 0 rgba(102, 126, 234, 0.4);
-  }
-  50% { 
-    transform: scale(1); 
-    opacity: 1;
-    box-shadow: 
-      0 6px 20px rgba(102, 126, 234, 0.3),
-      0 0 0 8px rgba(102, 126, 234, 0);
-  }
-  100% { 
-    transform: scale(0.8); 
-    opacity: 0.7;
-    box-shadow: 
-      0 4px 15px rgba(102, 126, 234, 0.2),
-      0 0 0 0 rgba(102, 126, 234, 0.4);
-  }
 }

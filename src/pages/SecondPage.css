@@ -13,10 +13,6 @@
 .second-page {
   width: 100vw;
   height: 100vh;
-  background-image: url('/background-chatgpt.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
   position: relative;
   padding: 2rem;
 }
