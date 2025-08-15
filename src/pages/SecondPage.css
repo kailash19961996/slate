@@ -78,18 +78,7 @@
   }
 }
 
-/* Hover effects */
-.left-split:hover {
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
-  transform: translateY(-2px);
-}
-
-.right-split:hover {
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
-  transform: translateY(-2px);
-}
+/* Hover effects removed - keeping clean, minimal design - UPDATED */
 
 /* Responsive Design */
 @media (max-width: 1024px) {

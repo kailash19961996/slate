@@ -1,86 +1,40 @@
 /**
- * ChatInterface.jsx - Pretty Chat Interface Component
+ * ChatInterface.jsx - Pretty Chat Interface Component (Markdown-ready)
  * =================================================
- * 
- * Beautiful chatbot interface featuring:
- * - Message display with user/AI distinction
- * - Typing indicator when AI is thinking
- * - Input field with send button
- * - Scroll to bottom functionality
- * - Back button to return to FirstPage
- * 
- * Connected to backend for real-time chat functionality
+ * - Renders AI messages as Markdown (ReactMarkdown + GFM)
+ * - Keeps user messages as plain text
+ * - Typing indicator, scroll-to-bottom, clean layout
  */
 
-import { useState, useRef, useEffect } from 'react'
-import { Send, ArrowLeft, Bot, User } from 'lucide-react'
-import './ChatInterface.css'
+import { useState, useRef, useEffect } from "react";
+import { Send, Bot, User } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeSanitize from "rehype-sanitize";
+import "./ChatInterface.css";
 
 const ChatInterface = ({ messages, onSendMessage, isLoading, onBack }) => {
-  console.log('💬 [CHAT INTERFACE] ChatInterface component rendering')
-  console.log('📊 [CHAT INTERFACE] Current messages count:', messages.length)
-  console.log('⏳ [CHAT INTERFACE] Is loading:', isLoading)
-  
-  const [inputValue, setInputValue] = useState('')
-  const messagesEndRef = useRef(null)
+  const [inputValue, setInputValue] = useState("");
+  const messagesEndRef = useRef(null);
 
-  /**
-   * Auto-scroll to bottom when new messages are added
-   */
+  // Auto-scroll to bottom when new messages are added
   useEffect(() => {
-    scrollToBottom()
-  }, [messages])
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-  /**
-   * Scroll to bottom of messages container
-   */
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
-  /**
-   * Handle message submission
-   */
   const handleSubmit = (e) => {
-    e.preventDefault()
-    console.log('📤 [CHAT INTERFACE] Message submitted:', inputValue)
-    
+    e.preventDefault();
     if (inputValue.trim() && !isLoading) {
-      console.log('✅ [CHAT INTERFACE] Valid message, sending to parent')
-      onSendMessage(inputValue.trim())
-      setInputValue('')
-    } else {
-      console.log('❌ [CHAT INTERFACE] Invalid submission - empty or loading')
+      onSendMessage(inputValue.trim());
+      setInputValue("");
     }
-  }
+  };
 
-  /**
-   * Handle input changes
-   */
-  const handleInputChange = (e) => {
-    setInputValue(e.target.value)
-  }
-
-  /**
-   * Handle back button click
-   */
-  const handleBack = () => {
-    console.log('⬅️ [CHAT INTERFACE] Back button clicked')
-    onBack()
-  }
-
-  /**
-   * Format timestamp for display
-   */
-  const formatTime = (timestamp) => {
-    return new Date(timestamp).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    })
-  }
+  const formatTime = (ts) =>
+    new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   return (
-    <div className="chat-interface">
+    <div className="chat-interface" role="region" aria-label="Chat interface">
       {/* Header */}
       <div className="chat-header">
         <div className="chat-title">
@@ -89,7 +43,7 @@ const ChatInterface = ({ messages, onSendMessage, isLoading, onBack }) => {
         </div>
       </div>
 
-      {/* Messages Container */}
+      {/* Messages */}
       <div className="messages-container">
         {messages.length === 0 ? (
           <div className="welcome-message">
@@ -101,24 +55,46 @@ const ChatInterface = ({ messages, onSendMessage, isLoading, onBack }) => {
           messages.map((message) => (
             <div key={message.id} className={`message ${message.sender}`}>
               <div className="message-avatar">
-                {message.sender === 'user' ? (
-                  <User size={16} />
-                ) : (
-                  <Bot size={16} />
-                )}
+                {message.sender === "user" ? <User size={16} /> : <Bot size={16} />}
               </div>
+
               <div className="message-content">
                 <div className="message-bubble">
-                  <p>{message.text}</p>
+                  {message.sender === "ai" ? (
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      rehypePlugins={[rehypeSanitize]}
+                      components={{
+                        h1: (props) => <h1 className="md-h1" {...props} />,
+                        h2: (props) => <h2 className="md-h2" {...props} />,
+                        h3: (props) => <h3 className="md-h3" {...props} />,
+                        p: (props) => <p className="md-p" {...props} />,
+                        ul: (props) => <ul className="md-ul" {...props} />,
+                        ol: (props) => <ol className="md-ol" {...props} />,
+                        li: (props) => <li className="md-li" {...props} />,
+                        code: ({ inline, ...props }) =>
+                          inline ? (
+                            <code className="md-code-inline" {...props} />
+                          ) : (
+                            <pre className="md-code-block">
+                              <code {...props} />
+                            </pre>
+                          ),
+                      }}
+                    >
+                      {message.text}
+                    </ReactMarkdown>
+                  ) : (
+                    <p>{message.text}</p>
+                  )}
                 </div>
-                <div className="message-time">
-                  {formatTime(message.timestamp)}
-                </div>
+
+                <div className="message-time">{formatTime(message.timestamp)}</div>
               </div>
             </div>
           ))
         )}
-        
+
         {/* Typing Indicator */}
         {isLoading && (
           <div className="message ai">
@@ -134,26 +110,27 @@ const ChatInterface = ({ messages, onSendMessage, isLoading, onBack }) => {
             </div>
           </div>
         )}
-        
+
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Form */}
+      {/* Input */}
       <div className="input-container">
         <form onSubmit={handleSubmit} className="input-form">
           <div className="input-wrapper">
             <input
               type="text"
               value={inputValue}
-              onChange={handleInputChange}
+              onChange={(e) => setInputValue(e.target.value)}
               placeholder="Type your message..."
               className="message-input"
               disabled={isLoading}
             />
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="send-button"
               disabled={!inputValue.trim() || isLoading}
+              aria-label="Send message"
             >
               <Send size={18} />
             </button>
@@ -161,7 +138,7 @@ const ChatInterface = ({ messages, onSendMessage, isLoading, onBack }) => {
         </form>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default ChatInterface
+export default ChatInterface;

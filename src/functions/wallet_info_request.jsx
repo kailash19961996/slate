@@ -1,9 +1,7 @@
 // src/functions/wallet_info_request.jsx
-// Unified handler for the backend tool call: { type: "wallet_info_request" }
-// - Connects to TronLink (Nile/Mainnet detection)
-// - Builds a full snapshot
-// - Updates right panel + chat
-// - Posts /api/wallet/connected and /api/wallet/details back to backend
+// Unified handler for { type: "wallet_info_request" } from the backend.
+// MAINNET-safe: accepts whatever network TronLink is on, shows it to the user.
+// Always fetches a fresh snapshot, then posts back to backend for memory.
 
 export async function handleWalletInfoRequest({
     setMessages,
@@ -13,29 +11,31 @@ export async function handleWalletInfoRequest({
     API_BASE
   }) {
     try {
-      // --- Step 0: show intent in the chat
-    //   setMessages(prev => [...prev, {
-    //     id: Date.now() + Math.random(),
-    //     text: '🔄 Attempting to connect to TronLink... Please approve the popup.',
-    //     sender: 'ai',
-    //     timestamp: new Date()
-    //   }]);
+      console.log('🔧 [wallet_info_request] start — ensure connection and fresh snapshot');
   
-      // --- Step 1: connect wallet via TronLink
-      const { address, nodeHost, network } = await connectTronLinkNile();
-  
-      // --- Step 2: acknowledge connection
+      // UX hint
       setMessages(prev => [...prev, {
         id: Date.now() + Math.random(),
-        text: `Wallet connected (${network}). Fetching details...`,
+        text: '🔄 Attempting to connect to TronLink… please approve the popup.',
         sender: 'ai',
         timestamp: new Date()
       }]);
   
-      // --- Step 3: build snapshot
-      const snap = await getWalletSnapshot(address);
+      // 1) Connect and wait for address/network to stabilize
+      const { address, nodeHost, network } = await fullyConnectWallet();
   
-      // --- Step 4: update the right panel widget
+      // Show connected network to the user (mainnet or otherwise)
+      setMessages(prev => [...prev, {
+        id: Date.now() + Math.random(),
+        text: `✅ Wallet connected (${network}). Fetching details…`,
+        sender: 'ai',
+        timestamp: new Date()
+      }]);
+  
+      // 2) ALWAYS read a fresh snapshot
+      const snap = await getFreshWalletSnapshot(address);
+  
+      // 3) Update right panel widget + summary line
       setWalletData({
         ...snap,
         balance: `${Number(snap.core.trx).toFixed(6)} TRX`,
@@ -44,39 +44,29 @@ export async function handleWalletInfoRequest({
       });
       setCurrentWidget('wallet');
   
-      // --- Step 5: post a concise summary to chat (Bandwidth uses freeLimit)
-      const sumText =
+      const summary =
         `📊 TRX balance: ${Number(snap.core.trx).toFixed(6)} TRX | ` +
         `Energy ${snap.resources.energy.used}/${snap.resources.energy.limit} | ` +
         `Bandwidth ${snap.resources.bandwidth.used}/${snap.resources.bandwidth.freeLimit}`;
-      setMessages(prev => [...prev, {
-        id: Date.now() + Math.random(),
-        text: sumText,
-        sender: 'ai',
-        timestamp: new Date()
-      }]);
+      setMessages(prev => [...prev, { id: Date.now()+Math.random(), text: summary, sender: 'ai', timestamp: new Date() }]);
   
-      // --- Step 6: notify backend (so it can answer from memory next time)
-      await fetch(`${API_BASE}/api/wallet/connected`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: sessionId, address, node_host: nodeHost, network })
+      // 4) Push to backend to refresh memory (so AI answers from memory next time)
+      await postJson(`${API_BASE}/api/wallet/connected`, {
+        session_id: sessionId,
+        address,
+        node_host: nodeHost,
+        network
+      });
+      await postJson(`${API_BASE}/api/wallet/details`, {
+        session_id: sessionId,
+        address,
+        trx_balance: `${Number(snap.core.trx).toFixed(6)} TRX`,
+        extra: { snapshot: snap, node_host: nodeHost, network }
       });
   
-      await fetch(`${API_BASE}/api/wallet/details`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          session_id: sessionId,
-          address,
-          trx_balance: `${Number(snap.core.trx).toFixed(6)} TRX`,
-          extra: { snapshot: snap, node_host: nodeHost, network }
-        })
-      });
-  
-      console.log('✅ [wallet_info_request] Completed');
+      console.log('✅ [wallet_info_request] complete — backend memory refreshed');
     } catch (err) {
-      console.error('❌ [wallet_info_request] Failed:', err);
+      console.error('❌ [wallet_info_request] failed:', err);
       setMessages(prev => [...prev, {
         id: Date.now() + Math.random(),
         text: `❌ Wallet action failed: ${err?.message || err}`,
@@ -84,51 +74,47 @@ export async function handleWalletInfoRequest({
         timestamp: new Date()
       }]);
       try {
-        await fetch(`${API_BASE}/api/wallet/error`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session_id: sessionId, error: err?.message || String(err) })
+        await postJson(`${API_BASE}/api/wallet/error`, {
+          session_id: sessionId,
+          error: err?.message || String(err)
         });
-      } catch (_) { /* ignore secondary error */ }
+      } catch { /* ignore */ }
       setCurrentWidget('idle');
     }
   }
   
-  /* -------------------------------------------------------------------------- */
-  /* Helpers (kept local to this file — no utils folder needed)                 */
-  /* -------------------------------------------------------------------------- */
+  /* -----------------------------------------------------------------------------
+   * Helpers (kept local — no utils folder)
+   * ---------------------------------------------------------------------------*/
   
-  async function connectTronLinkNile() {
-    console.log('🔌 [WALLET] connectTronLinkNile() invoked');
+  async function fullyConnectWallet() {
+    console.log('🔌 [wallet] fullyConnectWallet()');
   
-    if (!window.tronLink) {
-      console.error('❌ [WALLET] TronLink extension not found');
-      throw new Error('TronLink not found. Install or enable the extension.');
-    }
-  
-    // Ask wallet to expose accounts (user may approve/reject)
+    await waitFor(() => !!window.tronLink, 8000, 100, 'TronLink extension not found. Install or enable it.');
+    await waitFor(() => !!window.tronWeb, 8000, 100, 'TronWeb not injected by TronLink yet.');
     await window.tronLink.request({ method: 'tron_requestAccounts' });
   
-    const tw = window.tronWeb;
-    const addr = tw?.defaultAddress?.base58;
-    if (!addr) {
-      console.error('❌ [WALLET] No defaultAddress.base58 (locked or no account)');
-      throw new Error('TronLink locked or no account selected.');
-    }
+    const prev = window.tronWeb?.defaultAddress?.base58 || '';
+    console.log('ℹ️ [wallet] previous defaultAddress:', prev || '(empty)');
   
-    const host = tw?.fullNode?.host || 'unknown';
-    let network = 'unknown';
-    if (/nile/i.test(host)) network = 'nile';
-    else if (/mainnet|api\.trongrid\.io/i.test(host)) network = 'mainnet';
+    await waitFor(() => !!(window.tronWeb?.defaultAddress?.base58), 8000, 100, 'No account selected or TronLink locked.');
+    await sleep(200);
   
-    console.log('✅ [WALLET] Connected', { address: addr, host, network });
+    const addr = window.tronWeb?.defaultAddress?.base58 || '';
+    const host = window.tronWeb?.fullNode?.host || 'unknown';
+    const network =
+      /nile/i.test(host) ? 'nile' :
+      (/mainnet|api\.trongrid\.io/i.test(host) ? 'mainnet' : 'unknown');
+  
+    console.log('✅ [wallet] connected →', { address: addr, host, network });
+    if (!addr) throw new Error('TronLink connected but no active address found.');
     return { address: addr, nodeHost: host, network };
   }
   
-  async function getWalletSnapshot(address) {
-    console.log('🧾 [WALLET] getWalletSnapshot()', address);
+  async function getFreshWalletSnapshot(address) {
+    console.log('🧾 [wallet] getFreshWalletSnapshot()', address);
     const tw = window.tronWeb;
-    if (!tw) throw new Error('TronWeb not available');
+    if (!tw) throw new Error('TronWeb not available (TronLink not injected).');
   
     const [balSun, acct, res] = await Promise.all([
       tw.trx.getBalance(address),
@@ -136,16 +122,17 @@ export async function handleWalletInfoRequest({
       tw.trx.getAccountResources(address),
     ]);
   
-    const toTRX = (sun) => Number(sun || 0) / 1e6;
-    const frozenBandwidthTRX = toTRX(acct?.frozen?.[0]?.frozen_balance || 0);
-    const frozenEnergyTRX = toTRX(acct?.account_resource?.frozen_balance_for_energy || 0);
+    const toTRX = v => Number(v || 0) / 1e6;
   
     const host = tw.fullNode?.host || 'unknown';
+    const network =
+      /nile/i.test(host) ? 'nile' :
+      (/mainnet|api\.trongrid\.io/i.test(host) ? 'mainnet' : 'unknown');
   
     const snapshot = {
       address,
       nodeHost: host,
-      network: /nile/i.test(host) ? 'nile' : (/mainnet|api\.trongrid\.io/i.test(host) ? 'mainnet' : 'unknown'),
+      network,
       core: { trx: toTRX(balSun) },
       resources: {
         energy: {
@@ -160,8 +147,8 @@ export async function handleWalletInfoRequest({
         },
       },
       frozen: {
-        forBandwidthTRX: frozenBandwidthTRX,
-        forEnergyTRX: frozenEnergyTRX,
+        forBandwidthTRX: toTRX((acct?.frozen?.[0]?.frozen_balance) || 0),
+        forEnergyTRX: toTRX((acct?.account_resource?.frozen_balance_for_energy) || 0),
       },
       permissions: {
         ownerKeys: acct?.owner_permission?.keys?.length || 1,
@@ -172,7 +159,33 @@ export async function handleWalletInfoRequest({
       fetchedAt: new Date().toISOString(),
     };
   
-    console.log('📦 [WALLET] Snapshot:', snapshot);
+    console.log('📦 [wallet] fresh snapshot:', snapshot);
     return snapshot;
   }
+  
+  async function postJson(url, body) {
+    console.log('📡 [postJson]', url, body);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      const t = await res.text().catch(() => '');
+      console.error('❌ [postJson] failed', res.status, t);
+      throw new Error(`POST ${url} failed with ${res.status}`);
+    }
+    return res.json().catch(() => ({}));
+  }
+  
+  async function waitFor(predicate, timeoutMs, intervalMs, onTimeoutMessage) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      try { if (predicate()) return; } catch {}
+      await sleep(intervalMs);
+    }
+    throw new Error(onTimeoutMessage || 'Operation timed out.');
+  }
+  
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
   

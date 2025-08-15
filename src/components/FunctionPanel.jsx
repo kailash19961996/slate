@@ -1,55 +1,47 @@
 /**
  * FunctionPanel.jsx - Dynamic Widget Display Panel
  * ===============================================
- * 
- * Displays dynamic widgets based on chat interactions:
- * 1. IdleWidget - Default state with pulsating bubble
- * 2. ThinkingWidget - Faster pulsation with "thinking" text when AI is processing
- * 3. WalletWidget - Shows wallet information when wallet connection is successful
- * 
- * Widget switching logic:
- * - No activity: IdleWidget
- * - AI processing: ThinkingWidget
- * - Successful tool call (wallet): WalletWidget
- * - Failed tool call: Falls back to IdleWidget
+ * Renders the active widget:
+ * - IdleWidget: default
+ * - ThinkingWidget: when AI processing
+ * - WalletWidget: after wallet_info_request
+ * - JustLendWidget: after any trustlender_* tool
  */
 
 import IdleWidget from '../widgets/IdleWidget'
 import ThinkingWidget from '../widgets/ThinkingWidget'
 import WalletWidget from '../widgets/WalletWidget'
+import JustLendWidget from '../widgets/JustLendWidget'
 import './FunctionPanel.css'
 
-const FunctionPanel = ({ currentWidget, walletData, isLoading, onWidgetChange }) => {
-  console.log('🎛️ [FUNCTION PANEL] FunctionPanel component rendering')
-  console.log('📊 [FUNCTION PANEL] Current widget:', currentWidget)
-  console.log('💳 [FUNCTION PANEL] Wallet data:', walletData)
-  console.log('⏳ [FUNCTION PANEL] Is loading:', isLoading)
+const FunctionPanel = ({ currentWidget, walletData, justLendData, isLoading, onWidgetChange }) => {
+  console.log('🎛️ [FUNCTION PANEL] render')
+  console.log('📊 [FUNCTION PANEL] currentWidget:', currentWidget)
+  console.log('💳 [FUNCTION PANEL] walletData:', walletData)
+  console.log('🏦 [FUNCTION PANEL] justLendData:', justLendData)
+  console.log('⏳ [FUNCTION PANEL] isLoading:', isLoading)
 
-  /**
-   * Render the appropriate widget based on current state
-   */
   const renderWidget = () => {
-    console.log('🔄 [FUNCTION PANEL] Rendering widget:', currentWidget)
-    
+    console.log('🔄 [FUNCTION PANEL] switch:', currentWidget)
     switch (currentWidget) {
       case 'thinking':
-        console.log('🤔 [FUNCTION PANEL] Rendering ThinkingWidget')
+        console.log('🤔 [FUNCTION PANEL] ThinkingWidget')
         return <ThinkingWidget />
-        
       case 'wallet':
-        console.log('💳 [FUNCTION PANEL] Rendering WalletWidget with data:', walletData)
+        console.log('💳 [FUNCTION PANEL] WalletWidget')
         return <WalletWidget walletData={walletData} />
-        
+      case 'justlend':
+        console.log('🏦 [FUNCTION PANEL] JustLendWidget')
+        return <JustLendWidget data={justLendData} />
       case 'idle':
       default:
-        console.log('😴 [FUNCTION PANEL] Rendering IdleWidget (default)')
+        console.log('😴 [FUNCTION PANEL] IdleWidget')
         return <IdleWidget />
     }
   }
 
   return (
     <div className="function-panel">
-      {/* Only Widget Container - no header/footer for minimalistic design */}
       <div className="widget-container">
         {renderWidget()}
       </div>
