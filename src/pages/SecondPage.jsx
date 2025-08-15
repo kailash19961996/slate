@@ -22,6 +22,8 @@ import './SecondPage.css'
 
 // 👉 Import the unified wallet handler (no utils folder)
 import { handleWalletInfoRequest } from '../functions/wallet_info_request'
+import { handleJustLendListMarkets, handleJustLendMarketDetail, handleJustLendUserPosition } from '../functions/justlend_handlers'
+
 
 const API_BASE = 'http://localhost:8000'
 
@@ -42,6 +44,8 @@ const SecondPage = ({ initialMessage }) => {
   // ---------------- Session ----------------
   const [sessionId] = useState(() => `session_${Date.now()}`)
   const initialSentRef = useRef(false) // prevent duplicate initial send
+
+  const [justLendData, setJustLendData] = useState(null)
 
   // ============================================================================
   // Bootstrap: send the FirstPage initial message on first mount

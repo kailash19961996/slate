@@ -52,7 +52,10 @@ TRON_NETWORK = os.getenv("TRON_NETWORK", "mainnet").lower()  # 'mainnet' | 'nile
 TRONGRID_API_KEY = os.getenv("TRONGRID_API_KEY")  # required for mainnet
 if TRON_NETWORK == "mainnet" and not TRONGRID_API_KEY:
     raise RuntimeError("TRONGRID_API_KEY is required on mainnet")
-    
+
+UNITROLLER_NILE = "TGjYzgCyPobsNS9n6WcbdLVR9dH7mWqFx7" # Contracts (mainnet)
+JUSDT_NILE = "TXJgMdjVX5dKiQaUi9QobwNxtSQaFqccvd" # Example jToken: jUSDT (mainnet)
+
 app = FastAPI(title="SLATE Backend", version="7.0.0")
 app.add_middleware(
     CORSMiddleware,
@@ -68,6 +71,51 @@ sessions: Dict[str, Dict[str, Any]] = {}
 # ------------------------------------------------------------------------------
 # Frontend ↔ Backend contract (request/response models)
 # ------------------------------------------------------------------------------
+COMPTROLLER_ABI = [
+    {"name": "getAllMarkets","type":"function","inputs":[],"outputs":[{"name":"","type":"address[]"}],"stateMutability":"view","constant":True},
+    {"name": "markets","type":"function","inputs":[{"name":"jToken","type":"address"}],
+     "outputs":[{"name":"isListed","type":"bool"},{"name":"collateralFactorMantissa","type":"uint256"},{"name":"isComped","type":"bool"}],
+     "stateMutability":"view","constant":True},
+    {"name": "getAccountLiquidity","type":"function","inputs":[{"name":"account","type":"address"}],
+     "outputs":[{"name":"error","type":"uint256"},{"name":"liquidity","type":"uint256"},{"name":"shortfall","type":"uint256"}],
+     "stateMutability":"view","constant":True},
+]
+
+JTOKEN_ABI = [
+    {"name":"symbol","type":"function","inputs":[],"outputs":[{"name":"","type":"string"}],"stateMutability":"view","constant":True},
+    {"name":"supplyRatePerBlock","type":"function","inputs":[],"outputs":[{"name":"","type":"uint256"}],"stateMutability":"view","constant":True},
+    {"name":"borrowRatePerBlock","type":"function","inputs":[],"outputs":[{"name":"","type":"uint256"}],"stateMutability":"view","constant":True},
+    {"name":"exchangeRateStored","type":"function","inputs":[],"outputs":[{"name":"","type":"uint256"}],"stateMutability":"view","constant":True},
+    {"name":"totalBorrows","type":"function","inputs":[],"outputs":[{"name":"","type":"uint256"}],"stateMutability":"view","constant":True},
+    {"name":"getAccountSnapshot","type":"function","inputs":[{"name":"account","type":"address"}],
+     "outputs":[{"name":"","type":"uint256"},{"name":"","type":"uint256"},{"name":"","type":"uint256"},{"name":"","type":"uint256"}],
+     "stateMutability":"view","constant":True},
+]
+
+def _tron_client() -> Tron:
+    if TRON_NETWORK == "mainnet":
+        return Tron(provider=HTTPProvider(api_key=TRONGRID_API_KEY, timeout=20.0))
+    # Nile endpoint (public); adjust if you use your own fullnode
+    return Tron(provider=HTTPProvider(endpoint_uri="https://nile.trongrid.io", timeout=20.0))
+
+def _get_comptroller(client: Tron):
+    c = client.get_contract(UNITROLLER)
+    c.abi = COMPTROLLER_ABI
+    return c
+
+def _get_jtoken(client: Tron, addr: str):
+    j = client.get_contract(addr)
+    j.abi = JTOKEN_ABI
+    return j
+
+# Helper: basic APR math from per-block rate (approx; TRON ~3s block)
+def _per_block_to_apy(rate_per_block: int) -> float:
+    # Very rough: ~28,800 blocks/day, ~10.5M/year if 3s blocks.
+    # Safer: assume ~20,000 blocks/day => ~7.3M blocks/year
+    blocks_year = 7_300_000
+    r = float(rate_per_block) / 1e18
+    return ( (1 + r) ** blocks_year - 1 ) * 100.0
+
 
 class ChatMessage(BaseModel):
     message: str
@@ -108,6 +156,101 @@ def get_wallet_info(user_request: str) -> Dict[str, Any]:
         "message": "Connect/ensure wallet via TronLink and return address, TRX, resources."
     }
 
+@tool
+def trustlender_list_markets() -> Dict[str, Any]:
+    """List JustLend markets with basic stats (symbol, collateral factor, supply/borrow rates, total borrows)."""
+    client = _tron_client()
+    comp = _get_comptroller(client)
+
+    addrs = comp.functions.getAllMarkets()
+    markets = []
+    for addr in addrs:
+        j = _get_jtoken(client, addr)
+        sym = j.functions.symbol()
+        s_rate = int(j.functions.supplyRatePerBlock())
+        b_rate = int(j.functions.borrowRatePerBlock())
+        exch = int(j.functions.exchangeRateStored())
+        borrows = int(j.functions.totalBorrows())
+        _, c_factor, _ = comp.functions.markets(addr)
+
+        markets.append({
+            "address": addr,
+            "symbol": sym,
+            "collateral_factor_mantissa": int(c_factor),
+            "collateral_factor_pct": int(c_factor) / 1e16,  # 1e18 -> %
+            "supply_rate_per_block": s_rate,
+            "supply_apy_pct_approx": round(_per_block_to_apy(s_rate), 2),
+            "borrow_rate_per_block": b_rate,
+            "borrow_apy_pct_approx": round(_per_block_to_apy(b_rate), 2),
+            "exchange_rate_mantissa": exch,
+            "total_borrows_mantissa": borrows
+        })
+    return {"network": TRON_NETWORK, "unitroller": UNITROLLER, "count": len(markets), "markets": markets}
+
+
+@tool
+def trustlender_market_detail(symbol: str) -> Dict[str, Any]:
+    """Detailed stats for a single market by symbol (case-insensitive), e.g. 'JUSDT'."""
+    client = _tron_client()
+    comp = _get_comptroller(client)
+
+    target = None
+    for addr in comp.functions.getAllMarkets():
+        j = _get_jtoken(client, addr)
+        sym = j.functions.symbol()
+        if sym.lower() == symbol.lower():
+            s_rate = int(j.functions.supplyRatePerBlock())
+            b_rate = int(j.functions.borrowRatePerBlock())
+            exch = int(j.functions.exchangeRateStored())
+            borrows = int(j.functions.totalBorrows())
+            _, c_factor, _ = comp.functions.markets(addr)
+            target = {
+                "address": addr,
+                "symbol": sym,
+                "collateral_factor_pct": int(c_factor) / 1e16,
+                "supply_rate_per_block": s_rate,
+                "supply_apy_pct_approx": round(_per_block_to_apy(s_rate), 2),
+                "borrow_rate_per_block": b_rate,
+                "borrow_apy_pct_approx": round(_per_block_to_apy(b_rate), 2),
+                "exchange_rate_mantissa": exch,
+                "total_borrows_mantissa": borrows
+            }
+            break
+
+    if not target:
+        return {"error": f"Market symbol '{symbol}' not found."}
+    return {"network": TRON_NETWORK, "unitroller": UNITROLLER, "market": target}
+
+
+@tool
+def trustlender_user_position(address: str) -> Dict[str, Any]:
+    """User-level position across markets + protocol-level liquidity/shortfall."""
+    client = _tron_client()
+    comp = _get_comptroller(client)
+
+    positions = []
+    for addr in comp.functions.getAllMarkets():
+        j = _get_jtoken(client, addr)
+        sym = j.functions.symbol()
+        _, token_bal, borrow_bal, exchMant = j.functions.getAccountSnapshot(address)
+
+        positions.append({
+            "jtoken": addr,
+            "symbol": sym,
+            "token_balance_mantissa": int(token_bal),
+            "borrow_balance_mantissa": int(borrow_bal),
+            "exchange_rate_mantissa": int(exchMant),
+        })
+
+    _, liquidity, shortfall = comp.functions.getAccountLiquidity(address)
+    return {
+        "network": TRON_NETWORK,
+        "address": address,
+        "positions": positions,
+        "liquidity_mantissa": int(liquidity),
+        "shortfall_mantissa": int(shortfall)
+    }
+
 # ------------------------------------------------------------------------------
 # LangChain tool-calling agent (kept simple — 1 tool, clear instruction)
 #   We’ll embed this agent inside LangGraph nodes.
@@ -124,24 +267,27 @@ def build_tool_agent() -> AgentExecutor:
             You have access to the following:
             - profile: persistent memory of user facts (wallet_connected, wallet_address, trx_balance, etc.)
 
+            You also have access to the following tools:
+            - get_wallet_info           → ask frontend to connect wallet & push snapshot
+            - trustlender_list_markets  → list JustLend markets
+            - trustlender_market_detail → detail for a market
+            - trustlender_user_position → user position across markets
+
             **RULES:**
             1. Always check the profile first for required facts (e.g., wallet_connected, wallet_address, trx_balance).
             2. If profile contains all the facts needed to answer the user’s question (e.g., trx_balance for balance queries), use those facts and respond directly without calling any tool.
             3. Only call get_wallet_info if:
             - profile is missing required facts (e.g., no trx_balance for a balance query), or
             - the user explicitly asks to refresh or update (e.g., 'refresh my balance').
-            4. Keep answers concise and relevant to the user’s request.
-            5. Respond with exactly one final message per user turn. Do not repeat or re-ask things you already know.
-            6. For balance queries, explicitly check if profile.trx_balance exists and use it to respond unless a refresh is requested.
+            4. Keep answers concise and relevant to the user’s request. Respond with exactly one final message per user turn. Do not repeat or re-ask things you already know.
+            5. For balance queries, explicitly check if profile.trx_balance exists and use it to respond unless a refresh is requested.
+            6. If a JustLend tool result is enough, present a short, clear answer.
             """),
         ("system", "Current profile memory (JSON): {profile}"),
         MessagesPlaceholder(variable_name="chat_history"),
         ("human", "{input}"),
         MessagesPlaceholder(variable_name="agent_scratchpad"),
     ])
-
-    agent = create_tool_calling_agent(llm, tools, prompt)
-    return AgentExecutor(agent=agent, tools=tools, return_intermediate_steps=True)
 
     agent = create_tool_calling_agent(llm, tools, prompt)
     return AgentExecutor(agent=agent, tools=tools, return_intermediate_steps=True)

@@ -1,12 +1,12 @@
 /**
- * IdleWidget.jsx - Default Idle State Widget
+ * IdleWidget.jsx - Modern Idle State Widget
  * =========================================
  * 
- * Default widget displayed when no specific action is happening:
- * - Small pulsating bubble animation
- * - Minimalistic design
- * - Gentle, slow pulse rhythm
- * - Indicates system is ready and waiting
+ * Modern widget displaying subtle body language when idle:
+ * - Gentle breathing/floating animation
+ * - Organic blob shape that sways softly
+ * - Mimics calm, waiting behavior
+ * - Subtle eye-like elements that blink occasionally
  */
 
 import './IdleWidget.css'
@@ -14,10 +14,12 @@ import './IdleWidget.css'
 const IdleWidget = () => {
   return (
     <div className="idle-widget">
-      <div className="idle-dots">
-        <span className="dot"></span>
-        <span className="dot"></span>
-        <span className="dot"></span>
+      <div className="idle-body">
+        <div className="idle-core">
+          <div className="idle-eye left"></div>
+          <div className="idle-eye right"></div>
+        </div>
+        <div className="idle-aura"></div>
       </div>
     </div>
   )

@@ -1,12 +1,12 @@
 /**
- * ThinkingWidget.jsx - AI Thinking State Widget
- * ============================================
+ * ThinkingWidget.jsx - Modern Thinking State Widget
+ * ================================================
  * 
- * Displayed when AI is processing user requests:
- * - Faster pulsating animation than IdleWidget
- * - "Thinking..." text at the bottom
- * - More energetic visual feedback
- * - Connected to chat interface loading state
+ * Enhanced idle-style widget for thinking state:
+ * - Red colored breathing/floating animation
+ * - Bigger size and faster movements
+ * - Tiny stars around the core
+ * - Same organic style as IdleWidget
  */
 
 import './ThinkingWidget.css'
@@ -15,10 +15,22 @@ const ThinkingWidget = () => {
   console.log('🤔 [THINKING WIDGET] ThinkingWidget component rendering')
   return (
     <div className="thinking-widget">
-      <div className="thinking-dots">
-        <span className="dot"></span>
-        <span className="dot"></span>
-        <span className="dot"></span>
+      <div className="thinking-body">
+        <div className="thinking-core">
+          <div className="thinking-eye left"></div>
+          <div className="thinking-eye right"></div>
+        </div>
+        <div className="thinking-aura"></div>
+        <div className="thinking-stars">
+          <div className="star"></div>
+          <div className="star"></div>
+          <div className="star"></div>
+          <div className="star"></div>
+          <div className="star"></div>
+          <div className="star"></div>
+          <div className="star"></div>
+          <div className="star"></div>
+        </div>
       </div>
     </div>
   )

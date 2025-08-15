@@ -1,44 +1,213 @@
 /**
- * ThinkingWidget.css - Light & Modern Thinking State Widget
- * ========================================================
+ * ThinkingWidget.css - Enhanced Idle-Style Thinking Widget
+ * =======================================================
  * 
- * Clean, modern design matching the attached picture:
- * - Light color palette
- * - Fast pulsing animation
- * - Minimalistic styling
- * - Professional appearance
+ * Red-colored organic thinking animation:
+ * - Bigger size than idle widget
+ * - Faster movements for active thinking
+ * - Tiny stars around the core
+ * - Same breathing/floating style as idle
  */
 
 .thinking-widget {
   display: flex;
   align-items: center;
   justify-content: center;
+  height: 100px;
+  width: 150px;
 }
 
-.thinking-dots {
+.thinking-body {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  animation: thinking-float 2.5s ease-in-out infinite;
+}
+
+.thinking-core {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #ff4757 0%, #ff3742 50%, #d63447 100%);
+  border-radius: 50% 40% 60% 30%;
+  animation: thinking-breathe 1.8s ease-in-out infinite,
+             thinking-morph 5s ease-in-out infinite;
   display: flex;
-  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
 }
 
-.thinking-dots .dot {
-  width: 12px;
-  height: 12px;
-  background: #ee5a24;
-  animation: thinkingSquare 0.6s infinite ease-in-out;
+.thinking-aura {
+  position: absolute;
+  top: -15px;
+  left: -15px;
+  right: -15px;
+  bottom: -15px;
+  background: radial-gradient(circle, rgba(255, 71, 87, 0.15) 0%, transparent 70%);
+  border-radius: 50%;
+  animation: thinking-aura-pulse 1.5s ease-in-out infinite;
 }
 
-.thinking-dots .dot:nth-child(2) { animation-delay: 0.1s; background: #ff6b6b; }
-.thinking-dots .dot:nth-child(3) { animation-delay: 0.2s; background: #ffb74d; }
-
-@keyframes thinkingSquare {
-  0%, 60%, 100% { transform: scale(0.6); opacity:0.4; }
-  30% { transform: scale(1.2); opacity:1; }
+.thinking-eye {
+  width: 8px;
+  height: 8px;
+  background: #ffffff;
+  border-radius: 50%;
+  opacity: 0.9;
+  animation: thinking-blink 3s ease-in-out infinite;
 }
 
-.thinking-widget p {
-  margin: 0;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #495057;
-  font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+.thinking-eye.left {
+  animation-delay: 0.1s;
+}
+
+.thinking-eye.right {
+  animation-delay: 0.05s;
+}
+
+.thinking-stars {
+  position: absolute;
+  top: -20px;
+  left: -20px;
+  right: -20px;
+  bottom: -20px;
+}
+
+.star {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: #ffeaa7;
+  border-radius: 50%;
+  animation: star-twinkle 2s ease-in-out infinite;
+}
+
+.star:nth-child(1) {
+  top: 10px;
+  left: 20px;
+  animation-delay: 0s;
+}
+
+.star:nth-child(2) {
+  top: 25px;
+  right: 15px;
+  animation-delay: 0.3s;
+}
+
+.star:nth-child(3) {
+  bottom: 20px;
+  left: 15px;
+  animation-delay: 0.6s;
+}
+
+.star:nth-child(4) {
+  bottom: 10px;
+  right: 25px;
+  animation-delay: 0.9s;
+}
+
+.star:nth-child(5) {
+  top: 5px;
+  left: 50%;
+  animation-delay: 1.2s;
+}
+
+.star:nth-child(6) {
+  left: 5px;
+  top: 50%;
+  animation-delay: 1.5s;
+}
+
+.star:nth-child(7) {
+  right: 5px;
+  top: 45%;
+  animation-delay: 1.8s;
+}
+
+.star:nth-child(8) {
+  bottom: 5px;
+  left: 45%;
+  animation-delay: 2.1s;
+}
+
+/* Faster floating animation than idle widget */
+@keyframes thinking-float {
+  0%, 100% { 
+    transform: translateY(0px) rotate(0deg); 
+  }
+  25% { 
+    transform: translateY(-4px) rotate(0.8deg); 
+  }
+  50% { 
+    transform: translateY(3px) rotate(0deg); 
+  }
+  75% { 
+    transform: translateY(-2px) rotate(-0.8deg); 
+  }
+}
+
+/* Faster breathing animation */
+@keyframes thinking-breathe {
+  0%, 100% { 
+    transform: scale(1); 
+  }
+  50% { 
+    transform: scale(1.08); 
+  }
+}
+
+/* Faster morphing animation */
+@keyframes thinking-morph {
+  0%, 100% { 
+    border-radius: 50% 40% 60% 30%; 
+  }
+  20% { 
+    border-radius: 60% 30% 50% 40%; 
+  }
+  40% { 
+    border-radius: 40% 60% 30% 50%; 
+  }
+  60% { 
+    border-radius: 30% 50% 40% 60%; 
+  }
+  80% { 
+    border-radius: 55% 35% 45% 55%; 
+  }
+}
+
+/* Faster aura pulsing */
+@keyframes thinking-aura-pulse {
+  0%, 100% { 
+    opacity: 0.4; 
+    transform: scale(1); 
+  }
+  50% { 
+    opacity: 0.8; 
+    transform: scale(1.15); 
+  }
+}
+
+/* Faster blinking animation */
+@keyframes thinking-blink {
+  0%, 90%, 100% { 
+    transform: scaleY(1); 
+    opacity: 0.9; 
+  }
+  93% { 
+    transform: scaleY(0.1); 
+    opacity: 0.4; 
+  }
+}
+
+/* Star twinkling animation */
+@keyframes star-twinkle {
+  0%, 100% { 
+    opacity: 0.3; 
+    transform: scale(0.8); 
+  }
+  50% { 
+    opacity: 1; 
+    transform: scale(1.2); 
+  }
 }

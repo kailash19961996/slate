@@ -1,44 +1,133 @@
 /**
- * IdleWidget.css - Light & Minimal Idle State Widget
- * ================================================
+ * IdleWidget.css - Modern Idle State Widget with Body Language
+ * ==========================================================
  * 
- * Clean, modern design matching the attached picture:
- * - Light color palette
- * - Subtle animations
- * - Minimalistic styling
- * - Professional appearance
+ * Organic, breathing entity design:
+ * - Gentle floating and swaying motions
+ * - Soft breathing-like scale animation
+ * - Subtle eye blinks for personality
+ * - Calm, waiting body language
  */
 
 .idle-widget {
   display: flex;
   align-items: center;
   justify-content: center;
+  height: 80px;
+  width: 120px;
 }
 
-.idle-dots {
+.idle-body {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  animation: idle-float 4s ease-in-out infinite;
+}
+
+.idle-core {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 50% 40% 60% 30%;
+  animation: idle-breathe 3s ease-in-out infinite,
+             idle-morph 8s ease-in-out infinite;
   display: flex;
-  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
-.idle-dots .dot {
-  width: 10px;
-  height: 10px;
-  background: #667eea;
-  animation: idleSquare 1.6s infinite ease-in-out;
+.idle-aura {
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  right: -10px;
+  bottom: -10px;
+  background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
+  border-radius: 50%;
+  animation: idle-aura-pulse 2.5s ease-in-out infinite;
 }
 
-.idle-dots .dot:nth-child(2) { animation-delay: 0.2s; background:#5e9cff; }
-.idle-dots .dot:nth-child(3) { animation-delay: 0.4s; background:#88b1ff; }
-
-@keyframes idleSquare {
-  0%, 60%, 100% { transform: scale(0.7); opacity:0.5; }
-  30% { transform: scale(1); opacity:1; }
+.idle-eye {
+  width: 6px;
+  height: 6px;
+  background: #ffffff;
+  border-radius: 50%;
+  opacity: 0.8;
+  animation: idle-blink 5s ease-in-out infinite;
 }
 
-.idle-widget p {
-  margin: 0;
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: #6c757d;
-  font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+.idle-eye.left {
+  animation-delay: 0.2s;
+}
+
+.idle-eye.right {
+  animation-delay: 0.1s;
+}
+
+/* Floating animation - gentle up and down movement */
+@keyframes idle-float {
+  0%, 100% { 
+    transform: translateY(0px) rotate(0deg); 
+  }
+  25% { 
+    transform: translateY(-3px) rotate(0.5deg); 
+  }
+  50% { 
+    transform: translateY(2px) rotate(0deg); 
+  }
+  75% { 
+    transform: translateY(-1px) rotate(-0.5deg); 
+  }
+}
+
+/* Breathing animation - subtle scale changes */
+@keyframes idle-breathe {
+  0%, 100% { 
+    transform: scale(1); 
+  }
+  50% { 
+    transform: scale(1.05); 
+  }
+}
+
+/* Morphing animation - shape changes to simulate organic movement */
+@keyframes idle-morph {
+  0%, 100% { 
+    border-radius: 50% 40% 60% 30%; 
+  }
+  25% { 
+    border-radius: 60% 30% 50% 40%; 
+  }
+  50% { 
+    border-radius: 40% 60% 30% 50%; 
+  }
+  75% { 
+    border-radius: 30% 50% 40% 60%; 
+  }
+}
+
+/* Aura pulsing - gentle energy field */
+@keyframes idle-aura-pulse {
+  0%, 100% { 
+    opacity: 0.3; 
+    transform: scale(1); 
+  }
+  50% { 
+    opacity: 0.6; 
+    transform: scale(1.1); 
+  }
+}
+
+/* Blinking animation - occasional eye blinks */
+@keyframes idle-blink {
+  0%, 95%, 100% { 
+    transform: scaleY(1); 
+    opacity: 0.8; 
+  }
+  97% { 
+    transform: scaleY(0.1); 
+    opacity: 0.3; 
+  }
 }

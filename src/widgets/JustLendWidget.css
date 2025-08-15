@@ -1,0 +1,82 @@
+/* src/widgets/JustLendWidget.css */
+/* Light, glassy card to match your existing panels */
+
+.jl-card {
+    width: 100%;
+    background: rgba(255,255,255,0.55);
+    border: 1px solid rgba(220,220,220,0.35);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+    padding: 1.25rem;
+  }
+  
+  .jl-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+  }
+  
+  .jl-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+  }
+  
+  .jl-sub {
+    font-size: 0.8rem;
+    opacity: 0.7;
+  }
+  
+  .jl-table {
+    display: grid;
+    gap: 6px;
+  }
+  
+  .jl-row {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr 1fr;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.35);
+    border: 1px solid rgba(220,220,220,0.3);
+  }
+  
+  .jl-head {
+    background: rgba(255,255,255,0.8);
+    font-weight: 600;
+  }
+  
+  .jl-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: 10px;
+    margin-top: 10px;
+  }
+  
+  .jl-item {
+    background: rgba(255,255,255,0.35);
+    border: 1px solid rgba(220,220,220,0.3);
+    border-radius: 10px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .jl-item span {
+    opacity: 0.7;
+    font-size: 0.9rem;
+  }
+  
+  .jl-foot {
+    margin-top: 10px;
+    opacity: 0.6;
+    font-size: 0.8rem;
+    word-break: break-all;
+  }
+  
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace; }
+  .mt { margin-top: 10px; }
+  .bad { color: #b00020; font-weight: 700; }
+  
