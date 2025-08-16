@@ -47,12 +47,21 @@ const FirstPage = ({ onMessageSubmit }) => {
     console.log('⌨️ [FIRST PAGE] Input changed:', e.target.value)
   }
 
+  /**
+   * Handle ticker item click
+   */
+  const handleTickerClick = (message) => {
+    console.log('🎫 [FIRST PAGE] Ticker clicked:', message)
+    onMessageSubmit(message)
+  }
+
   return (
     <div className="first-page">
       <div className="first-page-content">
         {/* Main Title */}
         <div className="title-section">
           <h1 className="slate-title">SLATE</h1>
+          <p className="slate-subtitle">your agentic AI assistant for everything related to TRON</p>
         </div>
 
         {/* Input Section */}
@@ -76,6 +85,37 @@ const FirstPage = ({ onMessageSubmit }) => {
               </button>
             </div>
           </form>
+        </div>
+
+        {/* Ticker Section */}
+        <div className="ticker-container">
+          <div className="ticker-content">
+            <span className="ticker-item" onClick={() => handleTickerClick("What's my TRX balance?")}>
+              What's my TRX balance?
+            </span>
+            <span className="ticker-item" onClick={() => handleTickerClick("Show me JustLend markets")}>
+              Show me JustLend markets
+            </span>
+            <span className="ticker-item" onClick={() => handleTickerClick("How do I stake TRX for energy?")}>
+              How do I stake TRX for energy?
+            </span>
+            <span className="ticker-item" onClick={() => handleTickerClick("What are the current TRON DeFi rates?")}>
+              What are the current TRON DeFi rates?
+            </span>
+            {/* Duplicate items for seamless loop */}
+            <span className="ticker-item" onClick={() => handleTickerClick("What's my TRX balance?")}>
+              What's my TRX balance?
+            </span>
+            <span className="ticker-item" onClick={() => handleTickerClick("Show me JustLend markets")}>
+              Show me JustLend markets
+            </span>
+            <span className="ticker-item" onClick={() => handleTickerClick("How do I stake TRX for energy?")}>
+              How do I stake TRX for energy?
+            </span>
+            <span className="ticker-item" onClick={() => handleTickerClick("What are the current TRON DeFi rates?")}>
+              What are the current TRON DeFi rates?
+            </span>
+          </div>
         </div>
       </div>
     </div>

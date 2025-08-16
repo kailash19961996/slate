@@ -43,7 +43,25 @@
   margin: 0;
   letter-spacing: 0.05em;
   font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-  text-shadow: none;
+  position: relative;
+  background: linear-gradient(135deg, #2c3e50 0%, #3498db 20%, #52c4ff 40%, #3498db 60%, #2c3e50 100%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shine 6s ease-in-out infinite;
+  text-shadow: 0 0 20px rgba(52, 152, 219, 0.2);
+}
+
+@keyframes shine {
+  0%, 100% {
+    background-position: -250% 0;
+    filter: brightness(1);
+  }
+  50% {
+    background-position: 250% 0;
+    filter: brightness(1.1);
+  }
 }
 
 .slate-subtitle {
@@ -54,6 +72,65 @@
   font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
   line-height: 1.5;
   text-shadow: none;
+}
+
+/* Ticker Section */
+.ticker-container {
+  width: 100%;
+  height: 50px;
+  overflow: hidden;
+  position: relative;
+  background: transparent;
+  margin: 1rem 0;
+  mask: linear-gradient(90deg, transparent 0%, white 10%, white 90%, transparent 100%);
+  -webkit-mask: linear-gradient(90deg, transparent 0%, white 10%, white 90%, transparent 100%);
+}
+
+.ticker-content {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  animation: tickerMoveSeamless 40s linear infinite;
+  will-change: transform;
+}
+
+.ticker-content:hover {
+  animation-play-state: paused;
+}
+
+.ticker-item {
+  display: inline-block;
+  padding: 8px 24px;
+  margin: 0 20px;
+  background: rgba(200, 200, 200, 0.2);
+  border: 1px solid rgba(180, 180, 180, 0.4);
+  border-radius: 20px;
+  color: rgba(60, 70, 80, 0.85);
+  font-size: 0.9rem;
+  font-weight: 400;
+  font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  user-select: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  flex-shrink: 0;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3);
+}
+
+.ticker-item:hover {
+  background: rgba(210, 210, 210, 0.3);
+  border-color: rgba(170, 170, 170, 0.5);
+  color: rgba(50, 60, 70, 0.95);
+}
+
+@keyframes tickerMoveSeamless {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
 }
 
 /* Input Section */
@@ -174,6 +251,12 @@
   .slate-subtitle {
     font-size: 1rem;
   }
+
+  .ticker-item {
+    font-size: 0.8rem;
+    padding: 6px 18px;
+    margin: 0 15px;
+  }
   
   .message-input {
     padding: 14px 18px;
@@ -200,4 +283,217 @@
   .slate-subtitle {
     font-size: 0.9rem;
   }
+
+  .ticker-container {
+    height: 45px;
+  }
+
+  .ticker-item {
+    font-size: 0.75rem;
+    padding: 5px 15px;
+    margin: 0 10px;
+  }
 }
+
+
+  color: #0c57a3;
+
+  font-weight: 300;
+
+}
+
+
+
+.send-button {
+
+  width: 44px;
+
+  height: 44px;
+
+  border-radius: 10px;
+
+  border: none;
+
+  background: #007bff;
+
+  color: white;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  cursor: pointer;
+
+  transition: all 0.3s ease;
+
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+
+}
+
+
+
+.send-button:hover:not(:disabled) {
+
+  background: #0056b3;
+
+  transform: scale(1.05) translateY(-1px);
+
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
+
+}
+
+
+
+.send-button:disabled {
+
+  opacity: 0.5;
+
+  cursor: not-allowed;
+
+  transform: none;
+
+}
+
+
+
+/* Animations */
+
+@keyframes cardSlideIn {
+
+  from {
+
+    opacity: 0;
+
+    transform: translateY(40px) scale(0.95);
+
+  }
+
+  to {
+
+    opacity: 1;
+
+    transform: translateY(0) scale(1);
+
+  }
+
+}
+
+
+
+@keyframes fadeInUp {
+
+  from {
+
+    opacity: 0;
+
+    transform: translateY(30px);
+
+  }
+
+  to {
+
+    opacity: 1;
+
+    transform: translateY(0);
+
+  }
+
+}
+
+
+
+/* Responsive Design */
+
+@media (max-width: 768px) {
+
+  .first-page {
+
+    padding: 1rem;
+
+  }
+
+  
+
+  .first-page-content {
+
+    padding: 2rem 1.5rem;
+
+    gap: 1.5rem;
+
+    border-radius: 20px;
+
+  }
+
+  
+
+  .slate-title {
+
+    font-size: 2.8rem;
+
+  }
+
+  
+
+  .slate-subtitle {
+
+    font-size: 1rem;
+
+  }
+
+  
+
+  .message-input {
+
+    padding: 14px 18px;
+
+    font-size: 0.95rem;
+
+  }
+
+  
+
+  .send-button {
+
+    width: 40px;
+
+    height: 40px;
+
+  }
+
+}
+
+
+
+@media (max-width: 480px) {
+
+  .first-page-content {
+
+    padding: 1.5rem;
+
+    gap: 1.2rem;
+
+    border-radius: 16px;
+
+  }
+
+  
+
+  .slate-title {
+
+    font-size: 2.2rem;
+
+  }
+
+  
+
+  .slate-subtitle {
+
+    font-size: 0.9rem;
+
+  }
+
+}
+
+

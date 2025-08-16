@@ -78,7 +78,7 @@
   position: absolute;
   width: 3px;
   height: 3px;
-  background: #ffeaa7;
+  background: #ff4757;
   border-radius: 50%;
   animation: star-twinkle 2s ease-in-out infinite;
 }

@@ -22,6 +22,7 @@ const SecondPage = ({ initialMessage }) => {
 
   // Widgets
   const [currentWidget, setCurrentWidget] = useState('idle') // 'idle' | 'thinking' | 'wallet' | 'justlend'
+  const [widgetBeforeThinking, setWidgetBeforeThinking] = useState('idle') // Track widget before thinking to restore after
   const [walletData, setWalletData] = useState(null)
   const [justLendData, setJustLendData] = useState(null)
 
@@ -43,7 +44,11 @@ const SecondPage = ({ initialMessage }) => {
   // Single round-trip to backend
   const handleSendToBackend = async (message) => {
     console.log('🔄 [SECOND PAGE] sending to backend:', { message, sessionId })
-    setIsThinking(true); setIsLoading(true); setCurrentWidget('thinking')
+    setIsThinking(true); setIsLoading(true)
+    
+    // Save current widget before switching to thinking
+    setWidgetBeforeThinking(currentWidget)
+    setCurrentWidget('thinking')
 
     try {
       const chatResponse = await fetch(`${API_BASE}/api/chat`, {
@@ -108,7 +113,10 @@ const SecondPage = ({ initialMessage }) => {
         console.log('ℹ️ [SECOND PAGE] no function_calls in this response')
       }
 
-      if (!usedTool) setCurrentWidget('idle')
+      if (!usedTool) {
+        // Restore widget that was active before thinking started
+        setCurrentWidget(widgetBeforeThinking)
+      }
       console.log('✅ [SECOND PAGE] round-trip complete')
     } catch (error) {
       console.error('❌ [SECOND PAGE] backend round-trip failed:', error)
@@ -118,7 +126,8 @@ const SecondPage = ({ initialMessage }) => {
         sender: 'ai',
         timestamp: new Date()
       }])
-      setCurrentWidget('idle')
+      // Restore widget that was active before thinking started
+      setCurrentWidget(widgetBeforeThinking)
     } finally {
       setIsThinking(false); setIsLoading(false)
     }
