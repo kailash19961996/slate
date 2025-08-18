@@ -109,11 +109,13 @@ print("🚀 [STARTUP] Configuring FastAPI application...")
 
 app = FastAPI(title="SLATE Backend", version="12.0.0")
 
-# CORS configuration for frontend development
+# In main.py, update the CORS section:
 allowed_origins = [
     "http://localhost:5173", "http://127.0.0.1:5173",  # Vite default
     "http://localhost:3000", "http://127.0.0.1:3000",  # React default
-    "http://localhost:3001", "http://127.0.0.1:3001"   # Alternative port
+    "http://localhost:3001", "http://127.0.0.1:3001",  # Alternative port
+    "https://slate-frontend.onrender.com",  # Your Render frontend URL
+    "https://*.onrender.com",  # Allow any Render subdomain
 ]
 
 print(f"🌐 [CORS] Allowed origins: {allowed_origins}")
@@ -491,10 +493,19 @@ def health():
 # -----------------------------------------------------------------------------
 # Application Entrypoint
 # -----------------------------------------------------------------------------
+# At the end of main.py, replace the existing if __name__ == "__main__": block with:
+
 if __name__ == "__main__":
+    import os
+    
+    # Get port from environment (Render provides this)
+    port = int(os.getenv("PORT", 8000))
+    host = "0.0.0.0"  # Important: must be 0.0.0.0 for Render
+    
     print("🚀 [STARTUP] Starting SLATE Backend Server...")
-    print("🚀 [STARTUP] Host: 127.0.0.1:8000")
-    print("🚀 [STARTUP] Reload: Enabled")
+    print(f"🚀 [STARTUP] Host: {host}:{port}")
+    print("🚀 [STARTUP] Reload: Disabled for production")
     print("✅ [STARTUP] Server ready!")
     
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    # Production mode - no reload
+    uvicorn.run("main:app", host=host, port=port, reload=False)
