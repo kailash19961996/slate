@@ -14,11 +14,11 @@ import WalletWidget from '../widgets/WalletWidget'
 import JustLendWidget from '../widgets/JustLendWidget'
 import './FunctionPanel.css'
 
-const FunctionPanel = ({ currentWidget, walletData, justLendData, isLoading, onWidgetChange }) => {
+const FunctionPanel = ({ currentWidget, justLendData, walletData, isLoading }) => {
   console.log('🎛️ [FUNCTION PANEL] render')
   console.log('📊 [FUNCTION PANEL] currentWidget:', currentWidget)
-  console.log('💳 [FUNCTION PANEL] walletData:', walletData)
   console.log('🏦 [FUNCTION PANEL] justLendData:', justLendData)
+  console.log('💳 [FUNCTION PANEL] walletData:', walletData)
   console.log('⏳ [FUNCTION PANEL] isLoading:', isLoading)
 
   const renderWidget = () => {
@@ -29,7 +29,7 @@ const FunctionPanel = ({ currentWidget, walletData, justLendData, isLoading, onW
         return <ThinkingWidget />
       case 'wallet':
         console.log('💳 [FUNCTION PANEL] WalletWidget')
-        return <WalletWidget walletData={walletData} />
+        return <WalletWidget data={walletData} />
       case 'justlend':
         console.log('🏦 [FUNCTION PANEL] JustLendWidget')
         return <JustLendWidget data={justLendData} />

@@ -1,57 +1,48 @@
 /**
- * WalletWidget.jsx - Wallet Information Display Widget
- * ===================================================
+ * WalletWidget.jsx - Wallet Tool Execution Indicator
+ * =================================================
  * 
- * Displayed when wallet connection is successful:
- * - Shows wallet address (formatted)
- * - Displays balance information
- * - Shows connection status
- * - Populated by backend tool call results
- * - Only appears when wallet data is available
+ * Displayed when wallet tools are executed:
+ * - Shows that wallet operations completed
+ * - No data storage per requirements
+ * - Simple status indicator
  */
 
-import { Wallet, CheckCircle } from 'lucide-react'
+import { Wallet, CheckCircle, Info } from 'lucide-react'
 import './WalletWidget.css'
 
-const WalletWidget = ({ walletData }) => {
-  console.log('💳 [WALLET WIDGET] WalletWidget component rendering')
-  console.log('📊 [WALLET WIDGET] Wallet data received:', walletData)
-  
+const WalletWidget = ({ data }) => {
+  console.log('💳 [WALLET WIDGET] WalletWidget component rendering with data:', data)
 
-  /**
-   * Format wallet address for display
-   */
-  const formatAddress = (address) => {
-    return address || 'N/A'
-  }
-
-  const handleCopyAddress = async () => {
-    if (walletData?.address) {
-      try {
-        await navigator.clipboard.writeText(walletData.address)
-        console.log('📋 [WALLET WIDGET] Address copied to clipboard')
-      } catch (error) {
-        console.error('❌ [WALLET WIDGET] Failed to copy address:', error)
-      }
-    }
-  }
-
-  // Handle case where no wallet data is provided
-  if (!walletData) {
-    console.log('⚠️ [WALLET WIDGET] No wallet data provided')
+  // Show generic message if no data
+  if (!data || !data.ok) {
     return (
       <div className="wallet-widget">
-        <div className="wallet-content">
+        <div className="wallet-header">
           <div className="wallet-icon">
-            <Wallet size={32} />
+            <Wallet size={28} />
           </div>
-          <h3>No Wallet Data</h3>
-          <p>Wallet information not available</p>
+          <div className="wallet-status">
+            <CheckCircle size={14} />
+            <span>Tool Executed</span>
+          </div>
+        </div>
+        <div className="wallet-info">
+          <div className="wallet-message">
+            <Info size={16} />
+            <span>Wallet tool completed. Check chat for details.</span>
+          </div>
+          <div className="wallet-note">
+            <p>💡 No wallet information is stored permanently for security.</p>
+          </div>
         </div>
       </div>
     )
   }
 
+  // Display actual wallet data temporarily
+  const { summary, snapshot } = data
+  
   return (
     <div className="wallet-widget">
       {/* Header with icon + status */}
@@ -65,45 +56,36 @@ const WalletWidget = ({ walletData }) => {
         </div>
       </div>
 
-      {/* Info list */}
+      {/* Wallet Data */}
       <div className="wallet-info">
-        {/* Address */}
-        <div className="wallet-field">
-          <span className="wallet-label">Address</span>
-          <span className="wallet-value wallet-address">
-            {formatAddress(walletData.address)}
-          </span>
+        {summary && (
+          <div className="wallet-field">
+            <strong>Address:</strong>
+            <div className="wallet-address">{summary.address}</div>
+          </div>
+        )}
+        
+        {summary && summary.network && (
+          <div className="wallet-field">
+            <strong>Network:</strong> {summary.network}
+          </div>
+        )}
+        
+        {snapshot && snapshot.core && (
+          <div className="wallet-field">
+            <strong>TRX Balance:</strong> {snapshot.core.trx?.toFixed(2) || '0'} TRX
+          </div>
+        )}
+        
+        {snapshot && snapshot.resources && (
+          <div className="wallet-field">
+            <strong>Energy:</strong> {snapshot.resources.energy?.used || 0} / {snapshot.resources.energy?.limit || 0}
+          </div>
+        )}
+        
+        <div className="wallet-note">
+          <p>💡 Data shown temporarily - not stored permanently.</p>
         </div>
-
-        {/* TRX Balance */}
-        <div className="wallet-field">
-          <span className="wallet-label">TRX Balance</span>
-          <span className="wallet-value">{walletData.core?.trx?.toFixed?.(6) || walletData.balance || '0'} TRX</span>
-        </div>
-
-        {/* Energy */}
-        {walletData.resources?.energy && (
-          <div className="wallet-field">
-            <span className="wallet-label">Energy</span>
-            <span className="wallet-value">{walletData.resources.energy.used}/{walletData.resources.energy.limit}</span>
-          </div>
-        )}
-
-        {/* Bandwidth */}
-        {walletData.resources?.bandwidth && (
-          <div className="wallet-field">
-            <span className="wallet-label">Bandwidth</span>
-            <span className="wallet-value">{walletData.resources.bandwidth.used}/{walletData.resources.bandwidth.limit}</span>
-          </div>
-        )}
-
-        {/* Network */}
-        {walletData.network && (
-          <div className="wallet-field">
-            <span className="wallet-label">Network</span>
-            <span className="wallet-value">{walletData.network}</span>
-          </div>
-        )}
       </div>
     </div>
   )

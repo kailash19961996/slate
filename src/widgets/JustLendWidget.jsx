@@ -8,24 +8,41 @@ export default function JustLendWidget({ data }) {
 
   if (view === 'list') {
     const rows = payload?.markets || []
+    console.log('🎨 [JL Widget] Rendering markets list:', { payload, rows })
+    
+    if (rows.length === 0) {
+      return (
+        <div className="jl-card">
+          <div className="jl-header">
+            <h3>JustLend Markets</h3>
+            <span className="jl-sub">{payload?.network?.toUpperCase() || 'UNKNOWN'}</span>
+          </div>
+          <div className="jl-loading">No markets available or still loading...</div>
+        </div>
+      )
+    }
+    
     return (
       <div className="jl-card">
         <div className="jl-header">
           <h3>JustLend Markets</h3>
-          <span className="jl-sub">{payload?.network?.toUpperCase()}</span>
+          <span className="jl-sub">{payload?.network?.toUpperCase() || 'UNKNOWN'}</span>
         </div>
         <div className="jl-table">
           <div className="jl-row jl-head">
             <div>Symbol</div><div>Collateral %</div><div>Supply APY</div><div>Borrow APY</div>
           </div>
-          {rows.map((m) => (
-            <div className="jl-row" key={m.address}>
-              <div>{m.symbol}</div>
-              <div>{(m.collateral_factor_pct).toFixed(2)}%</div>
-              <div>{m.supply_apy_pct_approx}%</div>
-              <div>{m.borrow_apy_pct_approx}%</div>
+          {rows.map((m, idx) => (
+            <div className="jl-row" key={m.address || `market-${idx}`}>
+              <div>{m.symbol || 'Unknown'}</div>
+              <div>{(m.collateral_factor_pct || 0).toFixed(2)}%</div>
+              <div>{m.supply_apy_pct_approx || 0}%</div>
+              <div>{m.borrow_apy_pct_approx || 0}%</div>
             </div>
           ))}
+        </div>
+        <div className="jl-footer">
+          <small>Count: {payload?.count || rows.length} markets</small>
         </div>
       </div>
     )

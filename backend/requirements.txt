@@ -14,6 +14,7 @@ httpx
 requests
 
 # LangChain and LangGraph (minimal working versions)
+langchain
 langchain-core
 langchain-openai
 langgraph
@@ -26,3 +27,4 @@ jsonschema
 
 # Blockchain and Crypto
 base58
+tronpy
