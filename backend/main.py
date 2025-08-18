@@ -498,12 +498,11 @@ def health():
 if __name__ == "__main__":
     import os
     
-    # Get port from environment (Render provides this)
+    # Get port from environment (Render provides this, defaults to 8000 locally)
     port = int(os.getenv("PORT", 8000))
-    host = "0.0.0.0"  # Important: must be 0.0.0.0 for Render
+    host = "0.0.0.0"  # Bind to all interfaces for Render
     
-    print("🚀 [STARTUP] Starting SLATE Backend Server...")
-    print(f"🚀 [STARTUP] Host: {host}:{port}")
+    print(f"🚀 [STARTUP] Starting SLATE Backend Server on {host}:{port}...")
     print("🚀 [STARTUP] Reload: Disabled for production")
     print("✅ [STARTUP] Server ready!")
     
