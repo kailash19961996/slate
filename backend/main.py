@@ -68,7 +68,7 @@ from openai import OpenAI
 from models import ChatMessage, ChatResponse, WalletConnected, WalletError, WalletDetails
 from tron_client import create_tron_client
 from justlend_ops import list_markets, market_detail, user_position
-from llm_planner import TOOL_SPEC, update_conversation_memory, plan_with_llm, summarize_with_llm, decide_widget
+from llm_planner import TOOL_SPEC, update_conversation_memory, plan_with_llm, summarize_with_llm
 
 # -----------------------------------------------------------------------------
 # Environment Configuration & Startup
@@ -289,12 +289,12 @@ def api_chat(msg: ChatMessage):
             tool_result = last_backend.get("result") or last_backend.get("error", "Unknown error")
             
             print(f"💬 [API] Auto-summarizing backend result for: {tool_name}")
-            reply = summarize_with_llm(client_llm, text, tool_name, tool_result, session_id, OPENAI_MODEL)
+            summary_result = summarize_with_llm(client_llm, text, tool_name, tool_result, session_id, OPENAI_MODEL)
+            reply = summary_result["reply"]
+            widget_info = summary_result["widget"]
             update_conversation_memory(session_id, text, reply, tool_name, tool_result)
             print(f"💬 [API] Generated backend summary: {reply}")
-            
-            # Decide which widget to show based on tool and result
-            widget_info = decide_widget(tool_name, tool_result, session_id)
+            print(f"🎨 [API] Widget decision from summarizer: {widget_info}")
 
     # Return plan to frontend with widget information
     response = ChatResponse(
@@ -397,19 +397,19 @@ def api_chat_summarize(payload: Dict[str, Any] = Body(...)):
     result = provided_result or last_tool_results.get(session_id, {}).get(tool or "", {})
     print(f"📄 [API] Using result from: {'provided payload' if provided_result else 'memory'}")
 
-    # Generate the *only* user-facing text dynamically
-    print("📄 [API] Starting LLM summarization...")
-    reply = summarize_with_llm(client_llm, question, tool or "", result or {}, session_id, OPENAI_MODEL)
+    # Generate the *only* user-facing text dynamically AND decide widget
+    print("📄 [API] Starting LLM summarization with widget decision...")
+    summary_result = summarize_with_llm(client_llm, question, tool or "", result or {}, session_id, OPENAI_MODEL)
+    reply = summary_result["reply"]
+    widget_info = summary_result["widget"]
 
     # Update LangChain conversation memory with tool result context
     update_conversation_memory(session_id, question, reply, tool or "", result)
 
-    # Decide which widget to show for frontend tools too
-    widget_info = decide_widget(tool or "", result or {}, session_id)
-
     # Store in chat history for continuity/debug
     hist.append({"role": "ai", "content": reply})
     print(f"💾 [API] Added AI response to chat history")
+    print(f"🎨 [API] Widget decision from summarizer: {widget_info}")
     print(f"✅ [API] /api/chat/summarize completed")
     
     return {"reply": reply, "widget": widget_info}

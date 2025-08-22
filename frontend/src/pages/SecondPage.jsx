@@ -123,6 +123,9 @@ const SecondPage = ({ initialMessage }) => {
         } else if (widgetType === 'idle') {
           setCurrentWidget('idle')
         }
+      } else {
+        // If backend doesn't provide a widget decision, revert to idle
+        setCurrentWidget('idle')
       }
 
       let usedTool = false
@@ -276,7 +279,7 @@ const SecondPage = ({ initialMessage }) => {
         }])
       }
 
-      // Apply widget decision from summarizer
+      // Apply widget decision from summarizer (now the authoritative source)
       if (data.widget) {
         console.log('🎨 [SECOND PAGE] Summarizer widget decision:', data.widget)
         const widgetType = data.widget.type
@@ -291,6 +294,9 @@ const SecondPage = ({ initialMessage }) => {
         } else if (widgetType === 'idle') {
           setCurrentWidget('idle')
         }
+      } else {
+        // If no widget decision from summarizer, revert to idle
+        setCurrentWidget('idle')
       }
     } catch (e) {
       console.warn('⚠️ [SECOND PAGE] summarize failed (non-fatal):', e)

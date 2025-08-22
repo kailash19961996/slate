@@ -40,6 +40,118 @@ def get_or_create_memory(session_id: str) -> ConversationBufferWindowMemory:
         )
     return memory_store[session_id]
 
+def decide_widget_with_context(question: str, tool_used: str, tool_result: Dict, session_id: str, memory_context: str) -> Dict[str, Any]:
+    """
+    Decide which widget to show based on conversation context, tool used, and results.
+    This is more intelligent than the basic decide_widget as it considers the full conversation context.
+    
+    Args:
+        question: User's original question/message
+        tool_used: Name of the tool that was executed
+        tool_result: Result data from tool execution
+        session_id: Session identifier for context
+        memory_context: Recent conversation history
+        
+    Returns:
+        Dict with widget type and data to display
+    """
+    print(f"🎨 [WIDGET] Context-aware widget decision for tool: {tool_used}")
+    print(f"🎨 [WIDGET] Question: {question}")
+    
+    # Default to idle widget
+    widget_info = {"type": "idle", "data": None}
+    
+    if not tool_result or not isinstance(tool_result, dict):
+        print("🎨 [WIDGET] No valid tool result, checking context for widget hints")
+        
+        # Even without tool results, analyze the question for wallet/justlend context
+        question_lower = question.lower()
+        memory_lower = memory_context.lower() if memory_context else ""
+        
+        # Look for wallet-related keywords in question or recent context
+        wallet_keywords = ['wallet', 'connect', 'balance', 'trx', 'tron', 'address', 'tronlink']
+        justlend_keywords = ['justlend', 'lend', 'borrow', 'market', 'apy', 'interest', 'liquidity']
+        
+        if any(keyword in question_lower or keyword in memory_lower for keyword in wallet_keywords):
+            print("🎨 [WIDGET] Wallet context detected, showing idle (user may need to connect)")
+            return {"type": "idle", "data": None}
+        elif any(keyword in question_lower or keyword in memory_lower for keyword in justlend_keywords):
+            print("🎨 [WIDGET] JustLend context detected, showing idle (user may need to connect wallet first)")
+            return {"type": "idle", "data": None}
+            
+        return widget_info
+    
+    # Wallet tools -> show wallet widget with data
+    if tool_used in ["wallet_connect", "wallet_fetch_balance"] and tool_result.get("ok"):
+        widget_info = {
+            "type": "wallet",
+            "data": tool_result
+        }
+        print(f"🎨 [WIDGET] Showing wallet widget with address: {tool_result.get('address', 'unknown')}")
+        
+    elif tool_used == "wallet_check_tronlink":
+        # Only show wallet widget if successful
+        if tool_result.get("tronLinkPresent") and tool_result.get("tronWebInjected"):
+            widget_info = {"type": "wallet", "data": tool_result}
+            print("🎨 [WIDGET] Showing wallet widget - TronLink detected")
+        else:
+            print("🎨 [WIDGET] TronLink not available, showing idle widget")
+    
+    # JustLend tools -> show justlend widget with data
+    elif tool_used == "trustlender_list_markets":
+        if tool_result.get("success") and tool_result.get("markets"):
+            widget_info = {
+                "type": "justlend",
+                "data": {"view": "list", "payload": tool_result}
+            }
+            print(f"🎨 [WIDGET] Showing JustLend markets widget with {len(tool_result.get('markets', []))} markets")
+        else:
+            print(f"🎨 [WIDGET] JustLend markets failed: {tool_result.get('error', 'unknown error')}")
+            
+    elif tool_used == "trustlender_market_detail":
+        if tool_result.get("success") and tool_result.get("market"):
+            widget_info = {
+                "type": "justlend", 
+                "data": {"view": "detail", "payload": tool_result}
+            }
+            symbol = tool_result.get("market", {}).get("symbol", "unknown")
+            print(f"🎨 [WIDGET] Showing JustLend market detail widget for {symbol}")
+        else:
+            print(f"🎨 [WIDGET] JustLend market detail failed: {tool_result.get('error', 'unknown error')}")
+            
+    elif tool_used == "trustlender_user_position":
+        if tool_result.get("success"):
+            widget_info = {
+                "type": "justlend",
+                "data": {"view": "user", "payload": tool_result}
+            }
+            print(f"🎨 [WIDGET] Showing JustLend user position widget")
+        else:
+            print(f"🎨 [WIDGET] JustLend user position failed: {tool_result.get('error', 'unknown error')}")
+    
+    # Special case: If we have wallet data in context but showing justlend, prioritize based on question
+    elif "wallet" not in tool_used and "justlend" not in tool_used:
+        # No specific tool but analyze context for most relevant widget
+        question_lower = question.lower()
+        memory_lower = memory_context.lower() if memory_context else ""
+        
+        # Check if question is more about wallet or justlend
+        wallet_score = sum(1 for kw in ['wallet', 'connect', 'balance', 'trx', 'address'] if kw in question_lower)
+        justlend_score = sum(1 for kw in ['justlend', 'lend', 'borrow', 'market', 'apy'] if kw in question_lower)
+        
+        if wallet_score > justlend_score:
+            print("🎨 [WIDGET] Question leans toward wallet context")
+        elif justlend_score > wallet_score:
+            print("🎨 [WIDGET] Question leans toward JustLend context") 
+        
+        # For now, default to idle unless we have specific tool results
+        print(f"🎨 [WIDGET] No specific widget for tool: {tool_used}, showing idle")
+    
+    else:
+        print(f"🎨 [WIDGET] No specific widget for tool: {tool_used}, showing idle")
+    
+    return widget_info
+
 def decide_widget(tool_used: str, tool_result: Dict, session_id: str) -> Dict[str, Any]:
     """
     Decide which widget to show based on tool used and results.
@@ -304,12 +416,12 @@ def plan_with_llm(client_llm: OpenAI, session_id: str, user_text: str, model: st
         print(f"❌ [PLANNING] LLM planning failed: {type(e).__name__}: {e}")
         return []
 
-def summarize_with_llm(client_llm: OpenAI, question: str, tool: str, tool_result: Dict[str, Any], session_id: str, model: str) -> str:
+def summarize_with_llm(client_llm: OpenAI, question: str, tool: str, tool_result: Dict[str, Any], session_id: str, model: str) -> Dict[str, Any]:
     """
-    Generate the final user-facing response using LLM.
+    Generate the final user-facing response using LLM AND decide which widget to show.
     
-    This is the ONLY place where user-facing text is created.
-    No templates or canned responses - purely AI-generated.
+    This is the ONLY place where user-facing text is created and widgets are decided.
+    No templates or canned responses - purely AI-generated with context-aware widget selection.
     
     Args:
         client_llm: OpenAI client instance
@@ -320,7 +432,7 @@ def summarize_with_llm(client_llm: OpenAI, question: str, tool: str, tool_result
         model: OpenAI model to use
         
     Returns:
-        str: Natural language response for the user
+        Dict with 'reply' (str) and 'widget' (Dict) containing type and data
     """
     print(f"\n📄 [SUMMARIZE] Starting response generation")
     print(f"📄 [SUMMARIZE] Question: {question}")
@@ -380,8 +492,17 @@ def summarize_with_llm(client_llm: OpenAI, question: str, tool: str, tool_result
         response_text = (resp.choices[0].message.content or "").strip()
         print(f"📄 [SUMMARIZE] Generated response: {response_text}")
         
-        return response_text
+        # Decide widget based on context, tool, and conversation
+        widget_info = decide_widget_with_context(question, tool, tool_result, session_id, memory_context)
+        
+        return {
+            "reply": response_text,
+            "widget": widget_info
+        }
         
     except Exception as e:
         print(f"❌ [SUMMARIZE] Error generating response: {e}")
-        return "I encountered an error processing your request. Please try again."
+        return {
+            "reply": "I encountered an error processing your request. Please try again.",
+            "widget": {"type": "idle", "data": None}
+        }

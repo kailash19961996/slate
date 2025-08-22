@@ -175,4 +175,6 @@
   .input-container { padding: 0.75rem 0 0 0; }
   .message-content { max-width: 85%; }
   .message-bubble { padding: 0.6rem 0.85rem; }
-  .message-i
+  .message-input { padding: 10px 14px; font-size: 0.9rem; }
+  .send-button { width: 36px; height: 36px; }
+}
