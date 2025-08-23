@@ -10,6 +10,9 @@ An **AI‑agent front end** for TRON that reads data, explains it in simple lang
 
 ---
 
+[![Watch the demo](https://img.youtube.com/vi/1GjkSVrluDs/hqdefault.jpg)](https://www.youtube.com/watch?v=1GjkSVrluDs)
+ 
+
 ## Why it matters
 
 Today you bounce between docs, dashboards, and wallets. With SLATE, an agent can **do the busywork in front of you** — check if your wallet is connected, fetch market data, and give plain‑English answers like “how much can I borrow?” or “is this investment good?”. It’s a teaser of a near future where **every button on a website can be driven by an AI agent**.
