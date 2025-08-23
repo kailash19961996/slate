@@ -51,7 +51,7 @@ That’s the current working demo — no fake promises, just things you can test
 
 ## Live demo (deployed)
 
-The project is deployed here: **\[********[https://slate-frontend-0gfa.onrender.com](https://slate-frontend-0gfa.onrender.com)****\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*]**.
+The project is deployed here: [https://slate-frontend-0gfa.onrender.com](https://slate-frontend-0gfa.onrender.com)
 
 Backend: \[ [https://slate-sk7k.onrender.com](https://slate-sk7k.onrender.com)]
 
